@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Antigen is an explainable prompt-injection classifier for direct and indirect attacks.">
+    <meta name="theme-color" content="#f4f6f8" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#080b10" media="(prefers-color-scheme: dark)">
+    <title>Antigen — Prompt Injection Classifier</title>
+    <link rel="stylesheet" href="/style.css">
+    <script>
+      try {
+        const savedTheme = localStorage.getItem("antigen-theme");
+        if (savedTheme === "light" || savedTheme === "dark") {
+          document.documentElement.dataset.theme = savedTheme;
+        }
+      } catch (_) {
+        // The system preference remains the safe fallback when storage is unavailable.
+      }
+    </script>
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to classifier</a>
+    <div class="ambient-grid" aria-hidden="true"></div>
+    <div class="ambient-glow ambient-glow-one" aria-hidden="true"></div>
+    <div class="ambient-glow ambient-glow-two" aria-hidden="true"></div>
+
+    <header class="site-header shell" aria-label="Site header">
+      <a class="brand" href="#top" aria-label="Antigen home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" role="img">
+            <path d="M7 5.5h18v5H20.5V26h-9V10.5H7z"></path>
+            <path class="brand-mark-cut" d="M13.5 10.5h5V26h-5z"></path>
+          </svg>
+        </span>
+        <span class="brand-copy">
+          <strong>Antigen</strong>
+          <small>Prompt integrity lab</small>
+        </span>
+      </a>
+
+      <div class="header-actions">
+        <div class="api-status" id="api-status" data-state="checking" role="status" aria-live="polite">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span id="api-status-text">Checking engine</span>
+          <span class="status-meta" id="api-status-meta"></span>
+        </div>
+        <button class="icon-button theme-toggle" id="theme-toggle" type="button" aria-label="Switch color theme" title="Switch color theme">
+          <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20.4 14.9A8.5 8.5 0 0 1 9.1 3.6 8.5 8.5 0 1 0 20.4 14.9Z"></path>
+          </svg>
+          <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="3.5"></circle>
+            <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <main id="main-content">
+      <section class="hero shell" id="top" aria-labelledby="page-title">
+        <div class="hero-kicker">
+          <span aria-hidden="true"></span>
+          Explainable ML security
+        </div>
+        <div class="hero-layout">
+          <h1 id="page-title">Audit the <span>instruction layer.</span></h1>
+          <div class="hero-intro">
+            <p>Detect direct commands, indirect payloads, and encoded prompt-injection patterns before they reach an agent.</p>
+            <div class="hero-facts" aria-label="Classifier characteristics">
+              <span>Local inference</span>
+              <span>Signal-level explanations</span>
+              <span>0–1 risk score</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="analyzer shell" aria-label="Prompt injection analyzer">
+        <form class="panel input-panel" id="classify-form">
+          <div class="panel-heading">
+            <div>
+              <p class="section-index">01 / Analyze</p>
+              <h2>Inspect a message</h2>
+            </div>
+            <label class="live-control" for="live-toggle">
+              <span>Live analysis</span>
+              <span class="switch">
+                <input id="live-toggle" type="checkbox" checked>
+                <span class="switch-track" aria-hidden="true"><span></span></span>
+              </span>
+            </label>
+          </div>
+
+          <label class="field-label" for="prompt-input">Text to classify</label>
+          <div class="textarea-wrap">
+            <textarea id="prompt-input" name="text" rows="12" maxlength="20000" spellcheck="true" placeholder="Paste a user message, retrieved document, email, or tool output here…" aria-describedby="input-guidance character-count"></textarea>
+            <div class="textarea-corner" aria-hidden="true"></div>
+          </div>
+          <div class="input-meta">
+            <span id="input-guidance">Analysis runs after a short pause.</span>
+            <span id="character-count">0 / 20,000</span>
+          </div>
+
+          <div class="form-footer">
+            <button class="text-button" id="clear-button" type="button" disabled>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5 5 19"></path></svg>
+              Clear
+            </button>
+            <div class="submit-cluster">
+              <span class="shortcut-hint"><kbd>⌘</kbd><kbd>Enter</kbd></span>
+              <button class="primary-button" id="classify-button" type="submit" disabled>
+                <span class="button-label">Classify text</span>
+                <span class="button-loader" aria-hidden="true"></span>
+                <svg class="button-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+              </button>
+            </div>
+          </div>
+        </form>
+
+        <section class="panel result-panel" id="result-panel" aria-labelledby="result-title" aria-busy="false">
+          <div class="panel-heading result-heading">
+            <div>
+              <p class="section-index">02 / Assess</p>
+              <h2 id="result-title">Risk assessment</h2>
+            </div>
+            <span class="analysis-state" id="analysis-state">Awaiting input</span>
+          </div>
+
+          <div class="result-idle" id="result-idle">
+            <div class="idle-orbit" aria-hidden="true">
+              <span></span>
+              <svg viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            </div>
+            <h3>Ready to scan</h3>
+            <p>Enter text or choose a specimen below. Antigen will map the model score to human-readable signals.</p>
+          </div>
+
+          <div class="result-content" id="result-content" hidden>
+            <div class="verdict-row">
+              <div class="verdict-lockup">
+                <span class="verdict-icon" aria-hidden="true">
+                  <svg class="icon-benign" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"></path></svg>
+                  <svg class="icon-injection" viewBox="0 0 24 24"><path d="M12 8v5M12 17h.01"></path><path d="M10.3 4.4 2.6 18a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 4.4a2 2 0 0 0-3.4 0Z"></path></svg>
+                </span>
+                <div>
+                  <span class="verdict-caption">Classification</span>
+                  <strong id="verdict-label">Benign</strong>
+                </div>
+              </div>
+              <div class="score-lockup">
+                <strong id="score-value">0.0%</strong>
+                <span>injection probability</span>
+              </div>
+            </div>
+
+            <div class="score-visual">
+              <div class="score-track" id="score-track" role="meter" aria-label="Injection probability" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                <span class="score-fill" id="score-fill"></span>
+                <span class="threshold-marker" aria-hidden="true"></span>
+              </div>
+              <div class="score-scale" aria-hidden="true">
+                <span>0 · benign</span>
+                <span>decision threshold · 0.5</span>
+                <span>injection · 1</span>
+              </div>
+            </div>
+
+            <div class="result-summary">
+              <span class="summary-rule" aria-hidden="true"></span>
+              <p id="result-summary-text"></p>
+            </div>
+
+            <div class="result-metadata">
+              <div><span>Risk band</span><strong id="risk-band">Low</strong></div>
+              <div><span>Decision</span><strong id="decision-value">Allow</strong></div>
+              <div><span>Threshold</span><strong>0.500</strong></div>
+            </div>
+          </div>
+
+          <div class="result-error" id="result-error" role="alert" hidden>
+            <span class="error-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v6M12 17h.01"></path></svg>
+            </span>
+            <h3>Analysis unavailable</h3>
+            <p id="result-error-message">The classifier could not be reached.</p>
+            <button class="secondary-button" id="retry-classify" type="button">Try again</button>
+          </div>
+        </section>
+      </section>
+
+      <section class="explanation shell" id="explanation-section" aria-labelledby="explanation-title" hidden>
+        <div class="section-heading">
+          <div>
+            <p class="section-index">03 / Explain</p>
+            <h2 id="explanation-title">Why the model decided</h2>
+          </div>
+          <p>Rules expose recognizable attack patterns; learned n-grams show the strongest model-level evidence.</p>
+        </div>
+
+        <div class="explanation-grid">
+          <article class="panel signal-panel">
+            <div class="subpanel-heading">
+              <div>
+                <span class="eyebrow">Rule-based evidence</span>
+                <h3>Triggered signals</h3>
+              </div>
+              <span class="count-badge" id="signal-count">0 signals</span>
+            </div>
+            <div class="signal-groups" id="signal-groups"></div>
+          </article>
+
+          <article class="panel heuristic-panel">
+            <div class="subpanel-heading">
+              <div>
+                <span class="eyebrow">Structural scan</span>
+                <h3>Heuristic profile</h3>
+              </div>
+            </div>
+            <div class="heuristic-list" id="heuristic-list"></div>
+          </article>
+
+          <article class="panel ngram-panel">
+            <div class="subpanel-heading">
+              <div>
+                <span class="eyebrow">Learned evidence</span>
+                <h3>Top contributing n-grams</h3>
+              </div>
+              <span class="weight-key"><i></i> model weight</span>
+            </div>
+            <ol class="ngram-list" id="ngram-list"></ol>
+          </article>
+        </div>
+      </section>
+
+      <section class="examples shell" aria-labelledby="examples-title">
+        <div class="section-heading">
+          <div>
+            <p class="section-index">04 / Explore</p>
+            <h2 id="examples-title">Test specimens</h2>
+          </div>
+          <p>Choose a curated message to load it into the scanner and classify it immediately.</p>
+        </div>
+        <div class="examples-grid" id="examples-grid" aria-live="polite" aria-busy="true">
+          <div class="example-skeleton" aria-hidden="true"></div>
+          <div class="example-skeleton" aria-hidden="true"></div>
+          <div class="example-skeleton" aria-hidden="true"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer shell">
+      <div>
+        <span class="footer-mark" aria-hidden="true">T</span>
+        <p><strong>Antigen</strong> — an explainable prompt-injection classifier.</p>
+      </div>
+      <p>Scores are model estimates, not security guarantees. Pair with layered controls in production.</p>
+    </footer>
+  </body>
+</html>
