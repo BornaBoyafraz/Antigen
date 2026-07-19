@@ -38,7 +38,8 @@ const signalDefinitions = [
   ["triggered_phrases", "Prompt override phrases"],
   ["triggered_role_markers", "Role markers"],
   ["triggered_addressed_phrases", "Addressed instructions"],
-  ["triggered_indirect_frames", "Indirect attack frames"]
+  ["triggered_indirect_frames", "Indirect attack frames"],
+  ["discussion_context_phrases", "Read as quoted / discussed, not issued"]
 ];
 
 const heuristicDefinitions = [
@@ -46,7 +47,8 @@ const heuristicDefinitions = [
   { key: "base64_span_ratio", label: "Base64 span ratio", type: "ratio" },
   { key: "hex_or_url_escape_count", label: "Hex / URL escapes", type: "count" },
   { key: "zero_width_char_count", label: "Zero-width characters", type: "count" },
-  { key: "uppercase_ratio", label: "Uppercase ratio", type: "ratio" }
+  { key: "uppercase_ratio", label: "Uppercase ratio", type: "ratio" },
+  { key: "discussion_context_count", label: "Quoted / discussion context", type: "count" }
 ];
 
 const state = {

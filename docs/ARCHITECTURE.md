@@ -144,10 +144,18 @@ known limitations:
   class example, a phishing-awareness ticket, a research annotation) is
   hard to distinguish from live injection using n-grams and phrase
   matching alone, since the surface text is nearly identical — the
-  difference is quotation/discussion context, which this model doesn't
-  model. `category_accuracy["benign_hard"]` in the eval report is the
-  honest number for this (it is the model's weakest category by a wide
-  margin) — see Roadmap for the direct fix.
+  difference is quotation/discussion context. `features.py` now has a
+  `discussion_context_count` signal for exactly this (quote-span detection
+  — robust to the match being only part of a longer quoted clause, and to
+  contraction apostrophes like "don't" not being mistaken for quote marks
+  — plus a small discussion-cue phrase bank: "the phrase", "known as",
+  "for a class", etc.). It's a real, measured improvement, not a full fix:
+  held-out `category_accuracy["benign_hard"]` went from 0.0 to 0.8, but the
+  independent adversarial suite's `benign_hard` accuracy is still 0.25 —
+  the signal fires correctly on unseen phrasing too (visible in
+  `explain()`'s `discussion_context_phrases`), it just doesn't always carry
+  enough learned weight from 247 training rows to cross the decision
+  threshold. See Roadmap for the next step on this specifically.
 - **No multi-turn context.** Each call scores one block of text in
   isolation; a slow-escalation attack spread across several turns isn't
   modeled.

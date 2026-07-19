@@ -79,6 +79,75 @@ INDIRECT_FRAME_MARKERS = [
 ]
 _indirect_frame_re = [re.compile(p, re.IGNORECASE | re.MULTILINE) for p in INDIRECT_FRAME_MARKERS]
 
+# A matched trigger phrase inside quotes, or preceded by language that
+# frames it as something being quoted/discussed/tested rather than issued
+# as an instruction, is the model's single biggest known false-positive
+# class (see README "Honest scope" / Roadmap). This feature exists to give
+# the classifier a signal to distinguish "ignore previous instructions" as
+# an attack from 'ignore previous instructions' as the subject of a
+# sentence about attacks.
+#
+# Quoted-span detection has to work even when the matched trigger phrase is
+# only a fragment of a longer quoted clause (e.g. the match is "DAN" at the
+# tail end of a 40-character quote) — a fixed few-character window around
+# just the match doesn't cover that. It also has to not treat contraction
+# apostrophes ("don't", "let's") as quote delimiters, since those are far
+# more common than real quotes in ordinary English and would otherwise
+# spam false positives on this feature. So: neutralize letter-apostrophe-
+# letter contractions first, then find actual quote-delimited spans, then
+# check whether the match falls inside one of those spans.
+_CONTRACTION_APOSTROPHE_RE = re.compile(r"(?<=[A-Za-z])'(?=[A-Za-z])")
+_QUOTE_PAIR_RES = [
+    re.compile(r"'([^'\n]{1,300}?)'"),
+    re.compile(r'"([^"\n]{1,300}?)"'),
+    re.compile(r"‘([^’\n]{1,300}?)’"),
+    re.compile(r"“([^”\n]{1,300}?)”"),
+]
+
+
+def _quoted_spans(text: str) -> list[tuple[int, int]]:
+    neutralized = _CONTRACTION_APOSTROPHE_RE.sub("\0", text)
+    spans = []
+    for pattern in _QUOTE_PAIR_RES:
+        for m in pattern.finditer(neutralized):
+            spans.append((m.start(1), m.end(1)))
+    return spans
+
+
+def _is_within_any_span(spans: list[tuple[int, int]], start: int, end: int) -> bool:
+    return any(s <= start and end <= e for s, e in spans)
+
+
+DISCUSSION_CUES = [
+    r"\bquot(?:e|ed|es|ing)\b",
+    r"\bexample(?:s)?\s+(?:of|like)\b",
+    r"\b(?:is|was|are)\s+call(?:ed)?\b",
+    r"\bknown as\b",
+    r"\bliterally\b",
+    r"\bthe (?:phrase|string|term|line|words?)\b",
+    r"\bcanonical\b",
+    r"\bwell[- ]known\b",
+    r"\bfor (?:my|a|this|our) (?:class|thesis|blog post|fiction|unit test|test|slide deck)\b",
+    r"\bnot an actual instruction\b",
+    r"\bfact[- ]check\b",
+    r"\bcitation\b",
+    r"\bheadline\b",
+    r"\bsample input\b",
+    r"\bstyle guide\b",
+    r"\bhigh level\b",
+    r"\bexplain(?:s|ing)?\b",
+    r"\btest suite\b",
+]
+_discussion_cue_re = [re.compile(p, re.IGNORECASE) for p in DISCUSSION_CUES]
+_DISCUSSION_CUE_WINDOW = 80
+
+
+def _in_discussion_context(text: str, match: re.Match, quoted_spans: list[tuple[int, int]]) -> bool:
+    if _is_within_any_span(quoted_spans, match.start(), match.end()):
+        return True
+    context = text[max(0, match.start() - _DISCUSSION_CUE_WINDOW):match.start()]
+    return any(p.search(context) for p in _discussion_cue_re)
+
 
 @dataclass
 class FeatureResult:
@@ -96,11 +165,13 @@ class FeatureResult:
     indirect_frame_marker_count: int
     length_chars: int
     uppercase_ratio: float
+    discussion_context_count: int
 
     matched_override_phrases: list[str]
     matched_role_markers: list[str]
     matched_addressed_phrases: list[str]
     matched_indirect_frames: list[str]
+    matched_discussion_context_phrases: list[str]
 
     def to_vector(self) -> list[float]:
         return [
@@ -115,6 +186,7 @@ class FeatureResult:
             self.indirect_frame_marker_count,
             self.length_chars,
             self.uppercase_ratio,
+            self.discussion_context_count,
         ]
 
     @staticmethod
@@ -131,6 +203,7 @@ class FeatureResult:
             "indirect_frame_marker_count",
             "length_chars",
             "uppercase_ratio",
+            "discussion_context_count",
         ]
 
 
@@ -140,6 +213,13 @@ def _find_all(patterns: list[re.Pattern], text: str) -> list[str]:
         for m in p.finditer(text):
             hits.append(m.group(0))
     return hits
+
+
+def _find_all_matches(patterns: list[re.Pattern], text: str) -> list[re.Match]:
+    matches: list[re.Match] = []
+    for p in patterns:
+        matches.extend(p.finditer(text))
+    return matches
 
 
 def _imperative_density(text: str) -> float:
@@ -177,10 +257,21 @@ def extract_features(text: str) -> FeatureResult:
     """
     normalized = unicodedata.normalize("NFKC", text)
 
-    override_hits = _find_all(_override_re, normalized)
-    role_hits = _find_all(_role_re, normalized)
-    addressed_hits = _find_all(_addressed_re, normalized)
+    override_matches = _find_all_matches(_override_re, normalized)
+    role_matches = _find_all_matches(_role_re, normalized)
+    addressed_matches = _find_all_matches(_addressed_re, normalized)
     indirect_hits = _find_all(_indirect_frame_re, normalized)
+
+    override_hits = [m.group(0) for m in override_matches]
+    role_hits = [m.group(0) for m in role_matches]
+    addressed_hits = [m.group(0) for m in addressed_matches]
+
+    quoted_spans = _quoted_spans(normalized)
+    discussion_matches = [
+        m for m in override_matches + role_matches + addressed_matches
+        if _in_discussion_context(normalized, m, quoted_spans)
+    ]
+    discussion_hits = [m.group(0) for m in discussion_matches]
 
     hex_or_url_escapes = len(_HEX_ESCAPE_RE.findall(normalized))
     zero_width = len(_ZERO_WIDTH_RE.findall(text))
@@ -198,8 +289,10 @@ def extract_features(text: str) -> FeatureResult:
         indirect_frame_marker_count=len(indirect_hits),
         length_chars=len(text),
         uppercase_ratio=_uppercase_ratio(normalized),
+        discussion_context_count=len(discussion_hits),
         matched_override_phrases=override_hits,
         matched_role_markers=role_hits,
         matched_addressed_phrases=addressed_hits,
         matched_indirect_frames=indirect_hits,
+        matched_discussion_context_phrases=discussion_hits,
     )
