@@ -31,6 +31,7 @@ class Explanation:
     triggered_addressed_phrases: list[str] = field(default_factory=list)
     triggered_indirect_frames: list[str] = field(default_factory=list)
     discussion_context_phrases: list[str] = field(default_factory=list)
+    discussion_override_applied: bool = False
     heuristic_summary: dict[str, float] = field(default_factory=dict)
     top_contributing_ngrams: list[tuple[str, float]] = field(default_factory=list)
 
@@ -43,6 +44,7 @@ class Explanation:
             "triggered_addressed_phrases": self.triggered_addressed_phrases,
             "triggered_indirect_frames": self.triggered_indirect_frames,
             "discussion_context_phrases": self.discussion_context_phrases,
+            "discussion_override_applied": self.discussion_override_applied,
             "heuristic_summary": self.heuristic_summary,
             "top_contributing_ngrams": [
                 {"ngram": ng, "weight": w} for ng, w in self.top_contributing_ngrams
@@ -90,9 +92,9 @@ def _top_ngrams_for_text(pipeline: Pipeline, text: str, k: int = TOP_NGRAMS) -> 
 
 
 def explain(pipeline: Pipeline, explainer_pipeline: Pipeline, text: str) -> Explanation:
-    from model import predict_one
+    from model import predict_one_detailed
 
-    label, score = predict_one(pipeline, text)
+    label, score, override_applied = predict_one_detailed(pipeline, text)
     feats = extract_features(text)
 
     return Explanation(
@@ -103,6 +105,7 @@ def explain(pipeline: Pipeline, explainer_pipeline: Pipeline, text: str) -> Expl
         triggered_addressed_phrases=feats.matched_addressed_phrases,
         triggered_indirect_frames=feats.matched_indirect_frames,
         discussion_context_phrases=feats.matched_discussion_context_phrases,
+        discussion_override_applied=override_applied,
         heuristic_summary={
             "imperative_density": round(feats.imperative_density, 4),
             "base64_span_ratio": round(feats.base64_span_ratio, 4),

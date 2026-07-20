@@ -85,10 +85,49 @@ def train(examples: list[Example]) -> Pipeline:
     return pipeline
 
 
-def predict_one(pipeline: Pipeline, text: str) -> tuple[str, float]:
-    """Returns (label, probability_of_injection)."""
+# The `discussion_context_count` feature only gives the linear model a
+# signal to *learn from* — a single coefficient it can be outvoted on by
+# enough TF-IDF/other evidence, which is exactly the failure mode the
+# README's Roadmap called out. This is the deterministic follow-up: when
+# every trigger-phrase match in the text is a discussion/quoted one (zero
+# bare matches) and the text carries no indirect-content framing marker
+# (so it doesn't look like it arrived embedded in fetched content), cap the
+# score instead of trusting the model to have learned that tradeoff well
+# from 247 rows. It's a cap, not a hard override to "benign" — text that's
+# independently suspicious for other reasons can still score above the cap.
+DISCUSSION_OVERRIDE_CAP = 0.35
+
+
+def _apply_discussion_override(score: float, feats: FeatureResult) -> tuple[float, bool]:
+    bare_triggers = (
+        feats.override_phrase_count
+        + feats.role_spoof_count
+        + feats.addressed_to_assistant_count
+        - feats.discussion_context_count
+    )
+    fires = (
+        feats.discussion_context_count > 0
+        and bare_triggers <= 0
+        and feats.indirect_frame_marker_count == 0
+    )
+    if fires:
+        return min(score, DISCUSSION_OVERRIDE_CAP), True
+    return score, False
+
+
+def predict_one_detailed(pipeline: Pipeline, text: str) -> tuple[str, float, bool]:
+    """Like predict_one, but also reports whether the discussion-context
+    override capped the raw model score."""
     proba = pipeline.predict_proba([text])[0]
     injection_idx = LABEL_TO_INT["injection"]
-    score = float(proba[injection_idx])
+    raw_score = float(proba[injection_idx])
+    feats = extract_features(text)
+    score, override_applied = _apply_discussion_override(raw_score, feats)
     label = "injection" if score >= 0.5 else "benign"
+    return label, score, override_applied
+
+
+def predict_one(pipeline: Pipeline, text: str) -> tuple[str, float]:
+    """Returns (label, probability_of_injection)."""
+    label, score, _ = predict_one_detailed(pipeline, text)
     return label, score

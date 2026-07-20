@@ -275,7 +275,9 @@ function renderResult(payload, sourceText) {
   elements.analysisState.textContent = "Analysis complete";
   elements.resultSummary.textContent = label === "injection"
     ? "Potential prompt-injection behavior detected. Review the evidence below before this content enters an instruction context."
-    : "No strong prompt-injection pattern was detected. Continue to apply normal validation and least-privilege controls.";
+    : explanation.discussion_override_applied
+      ? "A trigger phrase matched, but every instance reads as quoted or discussed rather than issued, so the score was capped rather than trusting a single learned weight to outvote it."
+      : "No strong prompt-injection pattern was detected. Continue to apply normal validation and least-privilege controls.";
 
   renderSignals(explanation);
   renderHeuristics(explanation.heuristic_summary);

@@ -149,13 +149,23 @@ known limitations:
   — robust to the match being only part of a longer quoted clause, and to
   contraction apostrophes like "don't" not being mistaken for quote marks
   — plus a small discussion-cue phrase bank: "the phrase", "known as",
-  "for a class", etc.). It's a real, measured improvement, not a full fix:
-  held-out `category_accuracy["benign_hard"]` went from 0.0 to 0.8, but the
-  independent adversarial suite's `benign_hard` accuracy is still 0.25 —
-  the signal fires correctly on unseen phrasing too (visible in
-  `explain()`'s `discussion_context_phrases`), it just doesn't always carry
-  enough learned weight from 247 training rows to cross the decision
-  threshold. See Roadmap for the next step on this specifically.
+  "for a class", etc.). `model.py` also has a deterministic follow-up,
+  `_apply_discussion_override`: when every trigger match in the text is a
+  discussion/quoted one (zero bare matches) *and* the text carries no
+  indirect-content framing marker, it caps the score instead of trusting a
+  single learned coefficient to out-vote the raw trigger-phrase hit. That
+  second condition matters — without it, an attacker could wrap a live
+  indirect-injection payload in quote marks inside fetched content and get
+  it waved through; `test_discussion_override_does_not_fire_inside_indirect_frame`
+  in `tests/test_model.py` checks exactly that. Together, this is a real,
+  measured improvement, not a full fix: held-out
+  `category_accuracy["benign_hard"]` went from 0.0 to 1.0, and the
+  independent adversarial suite's `benign_hard` accuracy went from 0.25 to
+  0.5. The remaining gap is specifically the cases the override correctly
+  declines to touch — text with one quoted example *and* separate unquoted
+  wording nearby, where a bare match legitimately exists — which still
+  depends on the learned signal alone and needs more training rows of that
+  shape, not another override. See Roadmap.
 - **No multi-turn context.** Each call scores one block of text in
   isolation; a slow-escalation attack spread across several turns isn't
   modeled.
