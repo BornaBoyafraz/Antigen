@@ -179,3 +179,12 @@ known limitations:
   deployed service. `api/app.py` is representative of what a serving layer
   looks like, not a claim that it's production-hardened (no auth, no rate
   limiting, no model versioning).
+- **The `Dockerfile` was not verified with an actual `docker build`** — no
+  Docker daemon in the environment it was written in. What *was* verified:
+  copying the exact file set the image `COPY`s into a clean directory,
+  `pip install .` (the same non-editable, non-dev install the image runs)
+  in a fresh virtualenv from only those files, then starting `uvicorn` from
+  that install and hitting `/api/health`, `/`, and `/api/classify` — which
+  catches the packaging failure modes (missing files, import errors) most
+  likely to break the real build. It's a strong proxy, not a substitute for
+  actually building and running the image before relying on it.

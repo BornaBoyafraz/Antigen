@@ -116,6 +116,13 @@ python3 -m venv .venv
 No GPU, no external services, no API keys, no network calls — everything
 here runs locally in a plain virtualenv, including the web demo.
 
+Or the same thing containerized:
+
+```bash
+docker build -t antigen .
+docker run --rm -p 8000:8000 antigen   # API + web demo at http://127.0.0.1:8000
+```
+
 ## Honest scope
 
 The engineered features are real regex/structural matching, independently
