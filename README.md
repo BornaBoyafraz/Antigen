@@ -2,6 +2,7 @@
 
 <p align="left">
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
+  <a href="https://github.com/BornaBoyafraz/Antigen/actions/workflows/tests.yml"><img alt="CI" src="https://github.com/BornaBoyafraz/Antigen/actions/workflows/tests.yml/badge.svg"></a>
   <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-blue.svg">
   <img alt="scikit-learn + FastAPI" src="https://img.shields.io/badge/stack-scikit--learn%20%2B%20FastAPI-4B8BBE.svg">
   <img alt="Tests" src="https://img.shields.io/badge/tests-39%20passing-2ea043.svg">
