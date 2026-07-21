@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 
 from explain import explain, fit_explainer
 from model import load_dataset, predict_one, train
+from conversation import score_conversation
 
 from api.examples import EXAMPLE_GALLERY
 
@@ -56,6 +57,17 @@ class ClassifyResponse(BaseModel):
     explanation: dict
 
 
+class ClassifyConversationRequest(BaseModel):
+    turns: list[str] = Field(..., min_length=1, max_length=50)
+
+
+class ClassifyConversationResponse(BaseModel):
+    label: str
+    score: float
+    escalation_detected: bool
+    turns: list[dict]
+
+
 @app.get("/api/health")
 def health() -> dict:
     return {
@@ -77,6 +89,16 @@ def classify(req: ClassifyRequest) -> ClassifyResponse:
     label, score = predict_one(pipeline, req.text)
     exp = explain(pipeline, explainer, req.text)
     return ClassifyResponse(label=label, score=score, explanation=exp.to_dict())
+
+
+@app.post("/api/classify_conversation", response_model=ClassifyConversationResponse)
+def classify_conversation(req: ClassifyConversationRequest) -> ClassifyConversationResponse:
+    """Scores a conversation window turn-by-turn and additionally flags a
+    later turn that invokes a covert trigger word an earlier turn defined
+    -- see conversation.py for exactly what this does and doesn't catch."""
+    pipeline = _state["pipeline"]
+    result = score_conversation(pipeline, req.turns)
+    return ClassifyConversationResponse(**result.to_dict())
 
 
 if WEBAPP_DIR.exists():

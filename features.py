@@ -15,8 +15,9 @@ from dataclasses import dataclass, fields
 # --- Pattern banks -----------------------------------------------------
 
 OVERRIDE_PHRASES = [
-    r"ignore (?:all|any|the)?\s*(?:previous|prior|above)\s*instructions?",
-    r"disregard (?:all|any|the)?\s*(?:previous|prior|above)",
+    r"ignore (?:all|any|the|your|my|our|this|these|that)?\s*"
+    r"(?:previous|prior|above|current)\s*instructions?",
+    r"disregard (?:all|any|the|your|my|our|this|these|that)?\s*(?:previous|prior|above|current)",
     r"forget (?:all|everything|what)\s*(?:you (?:were|have been) told|above)?",
     r"new instructions?\s*[:\-]",
     r"override\s+(?:your|the|all)\s+(?:instructions?|rules?|guidelines?)",
