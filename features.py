@@ -21,7 +21,7 @@ OVERRIDE_PHRASES = [
     r"new instructions?\s*[:\-]",
     r"override\s+(?:your|the|all)\s+(?:instructions?|rules?|guidelines?)",
     r"you (?:are|'re) now\b",
-    r"act as (?:a|an)\b",
+    r"act as (?:a|an|my|your|the)?\s*\S+",
     r"pretend (?:to be|you are)\b",
     r"developer mode",
     r"do anything now",
