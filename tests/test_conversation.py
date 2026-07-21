@@ -1,10 +1,10 @@
 import pytest
 
-from model import load_dataset, train
 from conversation import (
     detect_codeword_setups,
     score_conversation,
 )
+from model import load_dataset, train
 
 
 @pytest.fixture(scope="module")

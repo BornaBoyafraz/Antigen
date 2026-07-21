@@ -12,7 +12,7 @@ from pathlib import Path
 from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score
 from sklearn.model_selection import train_test_split
 
-from model import Example, LABEL_TO_INT, load_dataset, predict_one, train
+from model import LABEL_TO_INT, Example, load_dataset, predict_one, train
 
 ADVERSARIAL_SUITE_PATH = Path(__file__).parent / "adversarial_suite.jsonl"
 
@@ -56,7 +56,7 @@ def _score_examples(pipeline, examples: list[Example]) -> dict:
         auc = float("nan")
 
     by_category: dict[str, dict] = {}
-    for e, pred_int in zip(examples, y_pred):
+    for e, pred_int in zip(examples, y_pred, strict=True):
         cat = by_category.setdefault(e.category, {"n": 0, "correct": 0})
         cat["n"] += 1
         cat["correct"] += int(pred_int == LABEL_TO_INT[e.label])

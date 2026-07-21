@@ -16,11 +16,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from api.examples import EXAMPLE_GALLERY
+from conversation import score_conversation
 from explain import explain, fit_explainer
 from model import load_dataset, predict_one, train
-from conversation import score_conversation
-
-from api.examples import EXAMPLE_GALLERY
 
 WEBAPP_DIR = Path(__file__).parent.parent / "webapp"
 

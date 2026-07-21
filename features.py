@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from dataclasses import dataclass, fields
+from dataclasses import dataclass
 
 # --- Pattern banks -----------------------------------------------------
 

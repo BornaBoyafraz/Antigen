@@ -12,12 +12,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import FeatureUnion, Pipeline
 
 from features import extract_features
 from model import LABEL_TO_INT, Example, HeuristicFeatureTransformer
-from sklearn.feature_extraction.text import TfidfVectorizer
 
 TOP_NGRAMS = 5
 
@@ -83,7 +83,7 @@ def _top_ngrams_for_text(pipeline: Pipeline, text: str, k: int = TOP_NGRAMS) -> 
 
     scored = []
     coo = vec.tocoo()
-    for col, val in zip(coo.col, coo.data):
+    for col, val in zip(coo.col, coo.data, strict=True):
         contribution = val * coefs[col]
         scored.append((vocab[col], float(contribution)))
 

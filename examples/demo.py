@@ -6,8 +6,8 @@ Run: .venv/bin/python examples/demo.py
 """
 from __future__ import annotations
 
-from explain import explain, fit_explainer
 from eval.harness import format_report, run_eval
+from explain import explain, fit_explainer
 from model import load_dataset, predict_one, train
 
 DEMO_INPUTS = [

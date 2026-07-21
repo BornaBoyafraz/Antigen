@@ -17,10 +17,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0", "httpx2>=2.0"]
+dev = ["pytest>=7.0", "httpx2>=2.0", "ruff>=0.6"]
 
 [tool.setuptools]
-py-modules = ["features", "model", "explain"]
+py-modules = ["features", "model", "explain", "conversation"]
 
 [tool.setuptools.packages.find]
 include = ["eval*", "api*"]
@@ -28,3 +28,18 @@ include = ["eval*", "api*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+# E/F: pyflakes + pycodestyle errors (real bugs: undefined names, unused
+# imports). I: import sorting. B: bugbear (likely-wrong constructs).
+# UP: pyupgrade. Deliberately not enabling the whole catalog -- a
+# portfolio project shouldn't fail CI over subjective style nits, only
+# over things that are plausibly bugs.
+select = ["E", "F", "I", "B", "UP"]
+# Long lines in prose-heavy regex banks and dataset seeds are not worth
+# reflowing; the formatter isn't run here, only the linter.
+ignore = ["E501"]
