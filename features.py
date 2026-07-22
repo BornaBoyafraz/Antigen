@@ -28,7 +28,7 @@ OVERRIDE_PHRASES = [
     r"do anything now",
     r"\bDAN\b",
     r"jailbreak",
-    r"reveal (?:your|the) (?:system prompt|instructions|prompt)",
+    r"reveal (?:your|the) (?:exact )?(?:system prompt|instructions|prompt)",
     r"repeat (?:your|the) (?:system prompt|instructions|prompt|previous text)",
     r"what (?:is|are) your (?:system prompt|instructions)",
     r"from now on\b",
