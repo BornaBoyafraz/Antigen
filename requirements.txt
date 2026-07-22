@@ -4,3 +4,4 @@ fastapi>=0.110
 uvicorn>=0.30
 pytest>=7.0
 httpx2>=2.0
+tomli>=2.0; python_version < "3.11"
