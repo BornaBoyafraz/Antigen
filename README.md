@@ -5,7 +5,7 @@
   <a href="https://github.com/BornaBoyafraz/Antigen/actions/workflows/tests.yml"><img alt="CI" src="https://github.com/BornaBoyafraz/Antigen/actions/workflows/tests.yml/badge.svg"></a>
   <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-blue.svg">
   <img alt="scikit-learn + FastAPI" src="https://img.shields.io/badge/stack-scikit--learn%20%2B%20FastAPI-4B8BBE.svg">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-60%20passing-2ea043.svg">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-65%20passing-2ea043.svg">
   <img alt="Status" src="https://img.shields.io/badge/status-portfolio%20prototype-orange.svg">
 </p>
 
@@ -48,6 +48,7 @@ demo and something a security team could actually work with.
 | [`explain.py`](explain.py) | Per-prediction rationale: which heuristic patterns matched verbatim, plus the top contributing TF-IDF character n-grams by actual model coefficient. Real model internals, not a templated explanation. |
 | [`data/generate_dataset.py`](data/generate_dataset.py) | Generates the original, synthetic 260-row labeled dataset — hand-written seeds plus template combinatorics across benign / benign-but-tricky / direct injection / indirect injection / jailbreak / obfuscated categories. |
 | [`eval/harness.py`](eval/harness.py) | Stratified train/test split + a fully independent hand-written adversarial suite ([`eval/build_adversarial_suite.py`](eval/build_adversarial_suite.py)), with per-category precision/recall/F1/ROC-AUC and a confusion matrix. |
+| [`baselines.py`](baselines.py) | A transparent regex-only baseline scored side by side with the trained model, so "the ML earns its keep" is a measured claim, not an assertion — the model beats it by **+0.32** on held-out data and **+0.63** on unseen adversarial phrasing (where keyword matching can't generalize). |
 | [`conversation.py`](conversation.py) | Multi-turn scoring: runs the single-turn classifier on every turn independently, plus a narrow, high-precision detector for codeword smuggling — an earlier turn covertly defines a trigger word, a later short turn just invokes it — the one thing single-turn scoring structurally can't see. |
 | [`api/app.py`](api/app.py) | FastAPI service: `POST /api/classify` → `{label, score, explanation}`, `POST /api/classify_conversation` → per-turn results plus conversation-level label/score, `GET /api/examples` for the demo gallery, `GET /api/health`. |
 | [`webapp/`](webapp/) | Interactive browser demo — paste text, get a live score and a triggered-feature breakdown. |
@@ -75,6 +76,11 @@ Train examples: 195   Test examples: 65
   benign          0.900      0.900      0.900       10
   injection       0.950      0.950      0.950       20
   accuracy: 0.933   roc_auc: 0.980
+
+=== Model vs. regex-only baseline (does the ML earn its keep?) ===
+  split                         model acc   baseline acc     lift
+  held-out                          0.954          0.631   +0.323
+  adversarial (unseen)              0.933          0.300   +0.633
 
 === Live classifications ===
 [benign    score=0.009] What's a good five-day itinerary for visiting Kyoto in November?
@@ -105,7 +111,7 @@ score above it. See "Honest scope" below for what this does and doesn't fix.)*
 python3 -m venv .venv
 .venv/bin/pip install -e ".[dev]"
 
-.venv/bin/pytest -q                      # 60 tests: features, model,
+.venv/bin/pytest -q                      # 65 tests: features, model,
                                           # explanations, eval harness, API,
                                           # multi-turn conversation scoring,
                                           # packaging guards

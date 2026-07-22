@@ -20,7 +20,7 @@ dependencies = [
 dev = ["pytest>=7.0", "httpx2>=2.0", "ruff>=0.6"]
 
 [tool.setuptools]
-py-modules = ["features", "model", "explain", "conversation"]
+py-modules = ["features", "model", "explain", "conversation", "baselines"]
 
 [tool.setuptools.packages.find]
 include = ["eval*", "api*"]

@@ -17,7 +17,7 @@ ROOT = Path(__file__).parent.parent
 
 # Top-level single-file modules that are imported at runtime and therefore
 # must be shipped, both as pyproject py-modules and in the Docker image.
-RUNTIME_MODULES = ["features", "model", "explain", "conversation"]
+RUNTIME_MODULES = ["features", "model", "explain", "conversation", "baselines"]
 
 
 def test_runtime_modules_are_declared_in_pyproject():

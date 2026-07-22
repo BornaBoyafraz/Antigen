@@ -7,11 +7,13 @@ you, since a random split still leaks the templates' phrasing into training.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 
 from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score
 from sklearn.model_selection import train_test_split
 
+from baselines import fit_baseline
 from model import LABEL_TO_INT, Example, load_dataset, predict_one, train
 
 ADVERSARIAL_SUITE_PATH = Path(__file__).parent / "adversarial_suite.jsonl"
@@ -37,12 +39,15 @@ def split_dataset(examples: list[Example], test_size: float = 0.25, seed: int = 
     return train_ex, test_ex
 
 
-def _score_examples(pipeline, examples: list[Example]) -> dict:
+PredictFn = Callable[[str], tuple[str, float]]
+
+
+def _score_examples(predict_fn: PredictFn, examples: list[Example]) -> dict:
     y_true = [LABEL_TO_INT[e.label] for e in examples]
     y_pred = []
     y_score = []
     for e in examples:
-        label, score = predict_one(pipeline, e.text)
+        label, score = predict_fn(e.text)
         y_pred.append(LABEL_TO_INT[label])
         y_score.append(score)
 
@@ -78,16 +83,24 @@ def run_eval() -> dict:
     train_ex, test_ex = split_dataset(all_examples)
     pipeline = train(train_ex)
 
-    held_out_results = _score_examples(pipeline, test_ex)
+    # The trained model uses predict_one(pipeline, text); the baseline exposes
+    # its own predict_one(text). Wrap both to the same text -> (label, score)
+    # shape so _score_examples is model-agnostic.
+    def model_predict(text: str) -> tuple[str, float]:
+        return predict_one(pipeline, text)
+
+    baseline = fit_baseline(train_ex)
+    baseline_predict: PredictFn = baseline.predict_one
 
     adversarial = load_adversarial_suite()
-    adversarial_results = _score_examples(pipeline, adversarial)
 
     return {
         "n_train": len(train_ex),
         "n_test": len(test_ex),
-        "held_out": held_out_results,
-        "adversarial_suite": adversarial_results,
+        "held_out": _score_examples(model_predict, test_ex),
+        "adversarial_suite": _score_examples(model_predict, adversarial),
+        "baseline_held_out": _score_examples(baseline_predict, test_ex),
+        "baseline_adversarial_suite": _score_examples(baseline_predict, adversarial),
     }
 
 
@@ -113,6 +126,20 @@ def format_report(results: dict) -> str:
         lines.append("  per-category accuracy:")
         for cat, acc in sorted(section["category_accuracy"].items()):
             lines.append(f"    {cat:<24} {acc:.3f}")
+        lines.append("")
+
+    if "baseline_held_out" in results:
+        lines.append("=== Model vs. regex-only baseline (does the ML earn its keep?) ===")
+        lines.append(f"  {'split':<28} {'model acc':>10} {'baseline acc':>14} {'lift':>8}")
+        for label, model_key, base_key in [
+            ("held-out", "held_out", "baseline_held_out"),
+            ("adversarial (unseen)", "adversarial_suite", "baseline_adversarial_suite"),
+        ]:
+            m_acc = results[model_key]["classification_report"]["accuracy"]
+            b_acc = results[base_key]["classification_report"]["accuracy"]
+            lines.append(
+                f"  {label:<28} {m_acc:>10.3f} {b_acc:>14.3f} {m_acc - b_acc:>+8.3f}"
+            )
         lines.append("")
 
     return "\n".join(lines)
