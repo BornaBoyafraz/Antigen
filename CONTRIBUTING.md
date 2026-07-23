@@ -30,6 +30,14 @@ Ruff checks imports and likely defects, mypy checks project-owned Python code,
 and pytest exercises the classifier, explanations, evaluation harness, API,
 conversation scoring, benchmark, and packaging.
 
+To print the same branch-coverage report used in continuous integration:
+
+```bash
+.venv/bin/pytest -q --cov=. --cov-report=term-missing
+```
+
+Coverage is informational and has no minimum threshold.
+
 To exercise the application manually:
 
 ```bash

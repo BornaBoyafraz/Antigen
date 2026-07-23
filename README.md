@@ -5,7 +5,6 @@
   <a href="https://github.com/BornaBoyafraz/Antigen/actions/workflows/tests.yml"><img alt="CI" src="https://github.com/BornaBoyafraz/Antigen/actions/workflows/tests.yml/badge.svg"></a>
   <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-blue.svg">
   <img alt="scikit-learn + FastAPI" src="https://img.shields.io/badge/stack-scikit--learn%20%2B%20FastAPI-4B8BBE.svg">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-86%20passing-2ea043.svg">
   <img alt="Status" src="https://img.shields.io/badge/status-portfolio%20prototype-orange.svg">
 </p>
 
@@ -115,10 +114,8 @@ score above it. See "Honest scope" below for what this does and doesn't fix.)*
 python3 -m venv .venv
 .venv/bin/pip install -e ".[dev]"
 
-.venv/bin/pytest -q                      # 86 tests: features, model,
-                                          # explanations, eval harness, API,
-                                          # multi-turn conversation scoring,
-                                          # packaging guards
+.venv/bin/pytest -q                      # full automated test suite
+.venv/bin/pytest -q --cov=. --cov-report=term-missing  # coverage, no threshold
 .venv/bin/ruff check .                    # lint (also enforced in CI)
 .venv/bin/mypy .                          # static type checking
 
