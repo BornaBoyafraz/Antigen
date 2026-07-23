@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 
 from cli import main
 
@@ -36,6 +38,18 @@ def test_json_output_has_label_and_score(capsys) -> None:
     output = json.loads(capsys.readouterr().out)
     assert "label" in output
     assert "score" in output
+
+
+def test_cli_runs_as_antigen_module() -> None:
+    completed = subprocess.run(
+        [sys.executable, "-m", "antigen", "--json", BENIGN_TEXT],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert json.loads(completed.stdout)["label"] == "benign"
 
 
 def test_no_input_returns_nonzero(monkeypatch, capsys) -> None:

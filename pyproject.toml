@@ -30,7 +30,7 @@ dev = [
 ]
 
 [tool.setuptools]
-py-modules = ["features", "model", "explain", "conversation", "baselines", "cli"]
+py-modules = ["features", "model", "explain", "conversation", "baselines", "cli", "antigen"]
 
 [tool.setuptools.packages.find]
 include = ["eval*", "api*"]

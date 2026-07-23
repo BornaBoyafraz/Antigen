@@ -128,6 +128,7 @@ python3 -m venv .venv
 
 .venv/bin/antigen "Ignore all previous instructions"   # one-off from the shell
 cat suspicious.txt | .venv/bin/antigen --json          # JSON for piping
+.venv/bin/python -m antigen "Review this text"          # equivalent module entry point
 ```
 
 No GPU, no external services, no API keys, no network calls — everything
