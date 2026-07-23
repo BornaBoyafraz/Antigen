@@ -133,6 +133,25 @@ cat suspicious.txt | .venv/bin/antigen --json          # JSON for piping
 No GPU, no external services, no API keys, no network calls — everything
 here runs locally in a plain virtualenv, including the web demo.
 
+## Make targets
+
+The Makefile keeps the common development commands short while still using the
+project-local virtual environment:
+
+| Target | Purpose |
+|---|---|
+| `make install` | Create `.venv` and install the package with development dependencies |
+| `make test` | Run the pytest suite |
+| `make lint` | Check the repository with ruff |
+| `make typecheck` | Type-check the project with mypy |
+| `make eval` | Print held-out, adversarial, and baseline evaluation results |
+| `make serve` | Start the API and browser demo with reload enabled |
+| `make bench` | Run the default latency and throughput benchmark |
+| `make clean` | Remove local Python caches, reports, and build output |
+
+Override `PYTHON` or `VENV` when a different interpreter or virtual-environment
+path is needed, for example `make install PYTHON=python3.12`.
+
 ## Latency benchmark
 
 Measure steady-state single-classification p50/p95/p99 latency and batch
