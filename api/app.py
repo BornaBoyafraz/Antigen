@@ -4,12 +4,13 @@ On startup, trains the scoring pipeline and the (separate, uncalibrated)
 explanation pipeline once on the full dataset and keeps them in memory —
 this is a single-process local demo, not a production model-serving setup;
 see docs/ARCHITECTURE.md for what a real deployment would add (versioned
-model artifacts, async inference workers, request batching).
+model artifacts, async inference workers, concurrency controls).
 """
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Annotated
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,7 +20,7 @@ from pydantic import BaseModel, Field
 from api.examples import EXAMPLE_GALLERY
 from conversation import score_conversation
 from explain import explain, fit_explainer
-from model import load_dataset, predict_one, train
+from model import load_dataset, train
 
 WEBAPP_DIR = Path(__file__).parent.parent / "webapp"
 
@@ -56,6 +57,12 @@ class ClassifyResponse(BaseModel):
     explanation: dict
 
 
+class ClassifyBatchRequest(BaseModel):
+    texts: list[Annotated[str, Field(min_length=1, max_length=20000)]] = Field(
+        ..., min_length=1, max_length=100
+    )
+
+
 class ClassifyConversationRequest(BaseModel):
     turns: list[str] = Field(..., min_length=1, max_length=50)
 
@@ -81,13 +88,22 @@ def examples() -> list[dict]:
     return EXAMPLE_GALLERY
 
 
-@app.post("/api/classify", response_model=ClassifyResponse)
-def classify(req: ClassifyRequest) -> ClassifyResponse:
+def _classify_text(text: str) -> ClassifyResponse:
     pipeline = _state["pipeline"]
     explainer = _state["explainer"]
-    label, score = predict_one(pipeline, req.text)
-    exp = explain(pipeline, explainer, req.text)
-    return ClassifyResponse(label=label, score=score, explanation=exp.to_dict())
+    exp = explain(pipeline, explainer, text)
+    return ClassifyResponse(label=exp.label, score=exp.score, explanation=exp.to_dict())
+
+
+@app.post("/api/classify", response_model=ClassifyResponse)
+def classify(req: ClassifyRequest) -> ClassifyResponse:
+    return _classify_text(req.text)
+
+
+@app.post("/api/classify_batch", response_model=list[ClassifyResponse])
+def classify_batch(req: ClassifyBatchRequest) -> list[ClassifyResponse]:
+    """Classify up to 100 independent text blocks in request order."""
+    return [_classify_text(text) for text in req.texts]
 
 
 @app.post("/api/classify_conversation", response_model=ClassifyConversationResponse)
