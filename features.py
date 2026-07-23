@@ -77,6 +77,12 @@ INDIRECT_FRAME_MARKERS = [
     r"\[(?:webpage|document|email|tool result|tool output|search result)\]",
     r"^\s*(?:from|subject)\s*:",
     r"here is the (?:content of the|webpage|document|email|search result)",
+    # Agent frameworks label fetched content with a bare header rather than a
+    # bracketed tag — "Tool output (files.read):", "Function result:". Without
+    # these, such content isn't recognized as third-party, which previously let
+    # the discussion-context cap below suppress genuine injections carried in
+    # tool results.
+    r"^\s*(?:tool|function)[ _](?:output|result|response)\b",
 ]
 _indirect_frame_re = [re.compile(p, re.IGNORECASE | re.MULTILINE) for p in INDIRECT_FRAME_MARKERS]
 
@@ -106,11 +112,25 @@ _QUOTE_PAIR_RES = [
 ]
 
 
+# In JSON and similar structured payloads every value is double-quoted as a
+# matter of syntax, not because anyone is quoting anything. Treating those as
+# quotation marks is how an injection embedded in a tool result — the single
+# most important indirect case — got read as "merely being discussed" and had
+# its score capped. A double-quoted span that is a JSON value (the previous
+# non-space character is a `:` or `,`, or it opens an object/array) is data, so
+# it is excluded from quotation spans. Prose quotation, which is what the
+# discussion signal is actually for, is unaffected.
+_JSON_VALUE_CONTEXT_RE = re.compile(r"[:,\[{]\s*$")
+
+
 def _quoted_spans(text: str) -> list[tuple[int, int]]:
     neutralized = _CONTRACTION_APOSTROPHE_RE.sub("\0", text)
     spans = []
     for pattern in _QUOTE_PAIR_RES:
+        is_double_quote = pattern.pattern.startswith('"')
         for m in pattern.finditer(neutralized):
+            if is_double_quote and _JSON_VALUE_CONTEXT_RE.search(neutralized[: m.start()]):
+                continue
             spans.append((m.start(1), m.end(1)))
     return spans
 
