@@ -6,7 +6,7 @@ WORKDIR /app
 # and any local tooling directories out of the image instead of relying on
 # a .dockerignore to catch them after the fact.
 COPY pyproject.toml README.md ./
-COPY features.py model.py explain.py conversation.py baselines.py cli.py antigen.py ./
+COPY features.py model.py explain.py conversation.py baselines.py cli.py antigen.py persistence.py ./
 COPY api ./api
 COPY data ./data
 COPY eval ./eval
