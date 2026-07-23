@@ -167,6 +167,17 @@ The JSON is grouped by dataset category. Each record retains its text, true and
 predicted labels, injection score, category, and evaluation-set name so related
 failure modes can be reviewed together without mixing the two test sources.
 
+Inspect how the learned linear model weights the engineered signals:
+
+```bash
+.venv/bin/python -m eval.feature_importance
+```
+
+The table averages the base logistic-regression coefficients across the three
+calibration folds, excludes the character n-gram vocabulary, and sorts the
+named engineered features by absolute coefficient magnitude. These weights
+describe the fitted model's associations, not causal effects.
+
 ## Latency benchmark
 
 Measure steady-state single-classification p50/p95/p99 latency and batch
