@@ -23,6 +23,7 @@ antigen = "cli:main"
 [project.optional-dependencies]
 dev = [
     "mypy>=1.11",
+    "pre-commit>=3.8",
     "pytest>=7.0",
     "pytest-cov>=5.0",
     "httpx2>=2.0",

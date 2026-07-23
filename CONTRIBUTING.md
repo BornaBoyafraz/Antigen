@@ -16,6 +16,24 @@ python3 -m venv .venv
 
 The project runs locally without API keys or external services.
 
+## Pre-commit hooks
+
+Install the repository hooks once after setting up the virtual environment:
+
+```bash
+.venv/bin/pre-commit install
+```
+
+The hooks run ruff and check trailing whitespace, final newlines, and newly
+added large files. Run them across the entire repository at any time with:
+
+```bash
+.venv/bin/pre-commit run --all-files
+```
+
+The first run downloads isolated hook environments. These quick hooks complement
+rather than replace the mypy and pytest checks below.
+
 ## Required checks
 
 Run all three checks before opening a pull request:
