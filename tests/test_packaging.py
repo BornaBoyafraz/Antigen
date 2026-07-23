@@ -14,7 +14,7 @@ from pathlib import Path
 try:
     import tomllib
 except ModuleNotFoundError:  # Python 3.10 compatibility
-    import tomli as tomllib
+    import tomli as tomllib  # type: ignore[no-redef]
 
 ROOT = Path(__file__).parent.parent
 

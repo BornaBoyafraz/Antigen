@@ -21,6 +21,7 @@ antigen = "cli:main"
 
 [project.optional-dependencies]
 dev = [
+    "mypy>=1.11",
     "pytest>=7.0",
     "httpx2>=2.0",
     "ruff>=0.6",
@@ -52,3 +53,36 @@ select = ["E", "F", "I", "B", "UP"]
 # Long lines in prose-heavy regex banks and dataset seeds are not worth
 # reflowing; the formatter isn't run here, only the linter.
 ignore = ["E501"]
+
+[tool.mypy]
+# No python_version pin: pinning it to the 3.10 floor makes mypy parse
+# third-party stubs (numpy's, for one) under 3.10 rules and fail on their
+# 3.12+ syntax. Real 3.10 compatibility is enforced where it actually
+# matters -- the pytest matrix runs a 3.10 leg, which is what caught the
+# tomllib regression.
+check_untyped_defs = true
+# Scripts live in directories (benchmarks/, eval/) that are also importable
+# as packages; without this, mypy resolves the same file under two module
+# names and refuses to run.
+explicit_package_bases = true
+mypy_path = "."
+ignore_missing_imports = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unreachable = true
+warn_unused_ignores = true
+show_error_codes = true
+pretty = true
+exclude = [
+    "^\\.venv/",
+    "^build/",
+]
+
+# Third-party stubs are not parsed: they are written against whatever Python
+# version their maintainers target, and parsing them under this project's
+# 3.10 floor produces syntax errors in code we neither own nor ship (numpy's
+# stubs use 3.12+ `type` statements, for example). Skipping them keeps the
+# 3.10 compatibility check on our own source, which is the point.
+[[tool.mypy.overrides]]
+module = ["numpy.*", "scipy.*", "sklearn.*", "joblib.*"]
+follow_imports = "skip"

@@ -23,6 +23,9 @@ jobs:
       - name: Lint with ruff
         run: ruff check .
 
+      - name: Type-check with mypy
+        run: mypy .
+
   pytest:
     runs-on: ubuntu-latest
     strategy:
