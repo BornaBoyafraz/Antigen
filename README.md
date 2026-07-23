@@ -178,6 +178,12 @@ calibration folds, excludes the character n-gram vocabulary, and sorts the
 named engineered features by absolute coefficient magnitude. These weights
 describe the fitted model's associations, not causal effects.
 
+Print current corpus counts, class balance, and character-length statistics:
+
+```bash
+.venv/bin/python -m eval.dataset_statistics
+```
+
 ## Latency benchmark
 
 Measure steady-state single-classification p50/p95/p99 latency and batch
