@@ -1,5 +1,11 @@
 "use strict";
 
+const {
+  decisionForScore,
+  normalizeUnit,
+  operatingPointForThreshold
+} = window.AntigenDecision;
+
 const elements = {
   form: document.querySelector("#classify-form"),
   input: document.querySelector("#prompt-input"),
@@ -19,6 +25,12 @@ const elements = {
   scoreValue: document.querySelector("#score-value"),
   scoreTrack: document.querySelector("#score-track"),
   scoreFill: document.querySelector("#score-fill"),
+  decisionThreshold: document.querySelector("#decision-threshold"),
+  thresholdValue: document.querySelector("#threshold-value"),
+  thresholdMode: document.querySelector("#threshold-mode"),
+  thresholdTradeoff: document.querySelector("#threshold-tradeoff"),
+  thresholdMarker: document.querySelector("#threshold-marker"),
+  thresholdMetadata: document.querySelector("#threshold-metadata"),
   resultSummary: document.querySelector("#result-summary-text"),
   riskBand: document.querySelector("#risk-band"),
   decisionValue: document.querySelector("#decision-value"),
@@ -56,7 +68,9 @@ const state = {
   requestController: null,
   requestId: 0,
   isLoading: false,
-  lastResultText: ""
+  lastResultText: "",
+  currentResult: null,
+  threshold: 0.5
 };
 
 function clamp(value, min = 0, max = 1) {
@@ -121,6 +135,7 @@ function cancelActiveRequest() {
 }
 
 function showIdle() {
+  state.currentResult = null;
   elements.resultPanel.removeAttribute("data-verdict");
   elements.resultIdle.hidden = false;
   elements.resultContent.hidden = true;
@@ -130,6 +145,7 @@ function showIdle() {
 }
 
 function showClassifyError(message) {
+  state.currentResult = null;
   elements.resultIdle.hidden = true;
   elements.resultContent.hidden = true;
   elements.resultError.hidden = false;
@@ -144,6 +160,57 @@ function riskBand(score) {
   if (score >= 0.5) return "Elevated";
   if (score >= 0.25) return "Guarded";
   return "Low";
+}
+
+function renderThresholdControl() {
+  const threshold = normalizeUnit(state.threshold);
+  const operatingPoint = operatingPointForThreshold(threshold);
+  const displayValue = threshold.toFixed(2);
+
+  state.threshold = threshold;
+  elements.decisionThreshold.value = String(threshold);
+  elements.decisionThreshold.setAttribute(
+    "aria-valuetext",
+    `${displayValue}, ${operatingPoint.name.toLowerCase()} operating point`
+  );
+  elements.thresholdValue.value = displayValue;
+  elements.thresholdValue.textContent = displayValue;
+  elements.thresholdMarker.style.left = `${threshold * 100}%`;
+  elements.thresholdMetadata.textContent = threshold.toFixed(3);
+  elements.thresholdMode.textContent = `${operatingPoint.name} operating point.`;
+  elements.thresholdTradeoff.textContent = operatingPoint.guidance;
+}
+
+function renderDecision() {
+  if (!state.currentResult) return;
+
+  const { score, explanation } = state.currentResult;
+  const label = decisionForScore(score, state.threshold);
+  const percent = score * 100;
+  const threshold = state.threshold.toFixed(2);
+
+  elements.resultPanel.dataset.verdict = label;
+  elements.verdictLabel.textContent = label;
+  elements.scoreTrack.setAttribute(
+    "aria-valuetext",
+    `${percent.toFixed(1)} percent injection probability, threshold ${threshold}, decision ${label}`
+  );
+  elements.riskBand.textContent = riskBand(score);
+  elements.decisionValue.textContent = label === "injection" ? "Review" : "Allow";
+  elements.resultSummary.textContent = label === "injection"
+    ? `This score meets the selected ${threshold} threshold. Review the evidence before this content enters an instruction context.`
+    : explanation.discussion_override_applied
+      ? `This score stays below the selected ${threshold} threshold after every trigger match was read as quoted or discussed and the model score was capped.`
+      : `This score stays below the selected ${threshold} threshold. Continue to apply normal validation and least-privilege controls.`;
+}
+
+function updateDecisionThreshold() {
+  state.threshold = normalizeUnit(elements.decisionThreshold.value);
+  renderThresholdControl();
+  if (state.currentResult) {
+    renderDecision();
+    elements.analysisState.textContent = "Threshold applied";
+  }
 }
 
 function renderSignals(explanation) {
@@ -256,28 +323,20 @@ function renderNgrams(ngrams) {
 }
 
 function renderResult(payload, sourceText) {
-  const label = payload.label === "injection" ? "injection" : "benign";
   const score = clamp(payload.score);
   const percent = score * 100;
   const explanation = payload.explanation || {};
 
-  elements.resultPanel.dataset.verdict = label;
+  state.currentResult = { score, explanation };
   elements.resultIdle.hidden = true;
   elements.resultError.hidden = true;
   elements.resultContent.hidden = false;
-  elements.verdictLabel.textContent = label;
   elements.scoreValue.textContent = `${percent.toFixed(1)}%`;
   elements.scoreFill.style.width = `${percent}%`;
   elements.scoreTrack.setAttribute("aria-valuenow", percent.toFixed(1));
-  elements.scoreTrack.setAttribute("aria-valuetext", `${percent.toFixed(1)} percent injection probability, classified ${label}`);
-  elements.riskBand.textContent = riskBand(score);
-  elements.decisionValue.textContent = label === "injection" ? "Review" : "Allow";
   elements.analysisState.textContent = "Analysis complete";
-  elements.resultSummary.textContent = label === "injection"
-    ? "Potential prompt-injection behavior detected. Review the evidence below before this content enters an instruction context."
-    : explanation.discussion_override_applied
-      ? "A trigger phrase matched, but every instance reads as quoted or discussed rather than issued, so the score was capped rather than trusting a single learned weight to outvote it."
-      : "No strong prompt-injection pattern was detected. Continue to apply normal validation and least-privilege controls.";
+  renderThresholdControl();
+  renderDecision();
 
   renderSignals(explanation);
   renderHeuristics(explanation.heuristic_summary);
@@ -494,12 +553,14 @@ elements.liveToggle.addEventListener("change", () => {
 
 elements.clearButton.addEventListener("click", clearInput);
 elements.retryClassify.addEventListener("click", () => classifyText("retry"));
+elements.decisionThreshold.addEventListener("input", updateDecisionThreshold);
 elements.themeToggle.addEventListener("click", toggleTheme);
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
   if (!document.documentElement.dataset.theme) syncThemeButton();
 });
 
 syncThemeButton();
+renderThresholdControl();
 updateInputMeta();
 showIdle();
 checkHealth();

@@ -18,6 +18,7 @@
         // The system preference remains the safe fallback when storage is unavailable.
       }
     </script>
+    <script src="/decision.js" defer></script>
     <script src="/app.js" defer></script>
   </head>
   <body>
@@ -146,7 +147,7 @@
                 </span>
                 <div>
                   <span class="verdict-caption">Classification</span>
-                  <strong id="verdict-label">Benign</strong>
+                  <strong id="verdict-label" aria-live="polite">Benign</strong>
                 </div>
               </div>
               <div class="score-lockup">
@@ -158,13 +159,41 @@
             <div class="score-visual">
               <div class="score-track" id="score-track" role="meter" aria-label="Injection probability" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
                 <span class="score-fill" id="score-fill"></span>
-                <span class="threshold-marker" aria-hidden="true"></span>
+                <span class="threshold-marker" id="threshold-marker" aria-hidden="true"></span>
               </div>
               <div class="score-scale" aria-hidden="true">
                 <span>0 · benign</span>
-                <span>decision threshold · 0.5</span>
+                <span>movable decision line</span>
                 <span>injection · 1</span>
               </div>
+            </div>
+
+            <div class="threshold-control">
+              <div class="threshold-heading">
+                <label for="decision-threshold">
+                  <span>Operating point</span>
+                  Decision threshold
+                </label>
+                <output id="threshold-value" for="decision-threshold">0.50</output>
+              </div>
+              <input
+                class="threshold-range"
+                id="decision-threshold"
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value="0.5"
+                aria-describedby="threshold-guidance"
+              >
+              <div class="threshold-poles" aria-hidden="true">
+                <span>Flag more · higher recall</span>
+                <span>Flag less · fewer false positives</span>
+              </div>
+              <p id="threshold-guidance">
+                <strong id="threshold-mode">Balanced operating point.</strong>
+                <span id="threshold-tradeoff">Lower thresholds usually catch more attacks but flag more benign text; higher thresholds reverse that tradeoff.</span>
+              </p>
             </div>
 
             <div class="result-summary">
@@ -175,7 +204,7 @@
             <div class="result-metadata">
               <div><span>Risk band</span><strong id="risk-band">Low</strong></div>
               <div><span>Decision</span><strong id="decision-value">Allow</strong></div>
-              <div><span>Threshold</span><strong>0.500</strong></div>
+              <div><span>Threshold</span><strong id="threshold-metadata">0.500</strong></div>
             </div>
           </div>
 
