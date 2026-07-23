@@ -136,7 +136,7 @@ def main() -> None:
     with OUT_PATH.open("w", encoding="utf-8") as f:
         for row in ROWS:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
-    by_label = {}
+    by_label: dict[str, int] = {}
     for row in ROWS:
         by_label[row["label"]] = by_label.get(row["label"], 0) + 1
     print(f"Wrote {len(ROWS)} rows to {OUT_PATH}")

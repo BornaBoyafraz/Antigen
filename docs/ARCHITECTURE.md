@@ -71,7 +71,7 @@ text ──▶ TfidfVectorizer (char 3-5-grams) ──┘
 
 ## Dataset
 
-`data/generate_dataset.py` produces `data/prompts.jsonl` (260 rows at time
+`data/generate_dataset.py` produces `data/prompts.jsonl` (322 rows at time
 of writing — rerun the script and check the printed counts for the current
 number). It is original, hand-authored content, generated two ways:
 
@@ -91,8 +91,8 @@ challenge, or any other dataset. It's synthetic by construction — the
 scripts that generate it are the actual specification of what's in it.
 
 `eval/build_adversarial_suite.py` produces a second, much smaller (30-row)
-benchmark that shares zero code or phrasing templates with the training
-generator, hand-written specifically to test generalization past the
+benchmark that shares no generator code or templates with the training
+corpus, hand-written specifically to test generalization past the
 training distribution's specific wording — including three
 indirect-injection sub-categories (`tool_use`, `browser_use`,
 `coding_agent`) named after Gray Swan's public track descriptions, as a
@@ -106,7 +106,7 @@ reports precision/recall/F1/ROC-AUC plus a confusion matrix and
 per-category accuracy on both:
 
 1. the held-out 25% split, and
-2. the fully independent adversarial suite.
+2. the separately authored adversarial suite.
 
 Both numbers are reported — not just the easier held-out split — because a
 random split of template-generated data still lets phrasing patterns leak
@@ -118,6 +118,28 @@ Run `.venv/bin/python examples/demo.py` for the current numbers, or
 `test_adversarial_suite_accuracy_meets_minimum_bar` in
 `tests/test_model.py` assert fixed minimum bars (0.80 / 0.70) so a future
 change that quietly tanks accuracy fails CI instead of shipping.
+
+## Choosing an operating point
+
+A security classifier is not deployed by choosing a model alone; it also
+needs a decision threshold matched to the cost of false positives and false
+negatives. `eval/harness.py` reports injection precision, recall, F1, and
+false-positive rate from thresholds 0.1 through 0.9 for both evaluation sets
+so that tradeoff is visible instead of being buried behind the default 0.5.
+The reported scores include the discussion-context cap applied during normal
+prediction.
+
+On the current small evaluation sets, a threshold of 0.1 reaches 1.000
+injection recall on both sets, but flags 0.439 of held-out benign examples and
+0.500 of adversarial benign examples. That high-recall operating point may be
+appropriate only when missed attacks are extremely costly and flagged content
+can still be reviewed. At 0.8, held-out injection precision is 0.919 with
+0.850 recall and a 0.073 false-positive rate; the adversarial suite reaches
+1.000 precision with 0.850 recall and no false positives. A higher-precision
+point is a better fit for an alerting workflow where repeated false alarms
+would create review fatigue. These figures describe only the checked-in,
+synthetic evaluation sets; a deployment must select and validate its threshold
+on representative traffic and revisit it as that traffic changes.
 
 ## Multi-turn scoring
 
@@ -173,7 +195,7 @@ What this is *not*: a production security product, a submission to any
 live competition, or a claim of state-of-the-art accuracy. Specific,
 known limitations:
 
-- **The dataset is small and synthetic** (260 training rows). It covers a
+- **The dataset is small and synthetic** (322 corpus rows). It covers a
   reasonable breadth of attack phrasing but not the volume or diversity a
   production classifier would need. The per-category accuracy breakdown in
   the eval report is intentionally granular so this isn't hidden behind a
@@ -218,13 +240,15 @@ known limitations:
   dedicated regression test
   (`test_legitimate_act_as_persona_request_is_not_flagged`) rather than
   just trusting the aggregate accuracy number to catch a regression.
-  Held-out `category_accuracy["benign_hard"]` went from 0.0 to 0.778, and
-  the independent adversarial suite's `benign_hard` accuracy went from
-  0.25 to 0.75 (`test_adversarial_benign_hard_accuracy_meets_minimum_bar`
-  now guards the floor). One adversarial `benign_hard` case still fails —
-  it relies on the learned signal alone, with no bare-pattern gap left to
-  fix — a residual, honestly-reported gap rather than a regex chased
-  until every example passes. See Roadmap.
+  The expanded corpus includes 38 `benign_hard` examples across security
+  training, incident response, software tests, localization, fiction, and
+  policy editing. Current held-out `category_accuracy["benign_hard"]` is
+  0.692, while the adversarial suite remains at 0.750
+  (`test_adversarial_benign_hard_accuracy_meets_minimum_bar` guards the
+  floor). One adversarial case still fails and the broader held-out category
+  remains substantially weaker than the aggregate result — a residual,
+  honestly reported gap rather than a pattern chased until every fixed
+  example passes. See Roadmap.
 - **Multi-turn scoring is narrow, not general.** `conversation.py` (see
   "Multi-turn scoring" above) catches codeword smuggling specifically —
   an explicit trigger word defined in one turn and invoked in another.
