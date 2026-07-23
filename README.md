@@ -154,6 +154,19 @@ project-local virtual environment:
 Override `PYTHON` or `VENV` when a different interpreter or virtual-environment
 path is needed, for example `make install PYTHON=python3.12`.
 
+## Inspecting evaluation errors
+
+Generate a machine-readable report of every misclassification from the
+standard held-out split and adversarial suite:
+
+```bash
+.venv/bin/python -m eval.error_analysis --output /tmp/antigen-errors.json
+```
+
+The JSON is grouped by dataset category. Each record retains its text, true and
+predicted labels, injection score, category, and evaluation-set name so related
+failure modes can be reviewed together without mixing the two test sources.
+
 ## Latency benchmark
 
 Measure steady-state single-classification p50/p95/p99 latency and batch
