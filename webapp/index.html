@@ -19,6 +19,7 @@
       }
     </script>
     <script src="/decision.js" defer></script>
+    <script src="/conversation.js" defer></script>
     <script src="/app.js" defer></script>
   </head>
   <body>
@@ -263,10 +264,92 @@
         </div>
       </section>
 
+      <section class="conversation shell" id="conversation-section" aria-labelledby="conversation-title">
+        <div class="section-heading">
+          <div>
+            <p class="section-index">04 / Trace</p>
+            <h2 id="conversation-title">Inspect a conversation</h2>
+          </div>
+          <p>Score ordered turns independently, then check whether a later short turn invokes a codeword established earlier.</p>
+        </div>
+
+        <div class="panel conversation-lab">
+          <form class="conversation-builder" id="conversation-form">
+            <div class="subpanel-heading">
+              <div>
+                <span class="eyebrow">Ordered context</span>
+                <h3>Conversation turns</h3>
+              </div>
+              <span class="count-badge" id="conversation-turn-count">2 turns</span>
+            </div>
+
+            <div class="conversation-turns" id="conversation-turn-inputs"></div>
+
+            <div class="conversation-builder-actions">
+              <div>
+                <button class="secondary-button" id="add-conversation-turn" type="button">
+                  Add turn
+                </button>
+                <button class="text-button" id="load-conversation-example" type="button">
+                  Load escalation specimen
+                </button>
+              </div>
+              <button class="primary-button" id="classify-conversation" type="submit" disabled>
+                <span class="button-label">Analyze conversation</span>
+                <span class="button-loader" aria-hidden="true"></span>
+                <svg class="button-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+              </button>
+            </div>
+            <p class="conversation-scope" id="conversation-guidance">
+              Add 2–50 non-empty turns. This mode detects explicit codeword setup and invocation; it does not model general slow-burn escalation.
+            </p>
+            <p class="conversation-form-error" id="conversation-form-error" role="alert" hidden></p>
+          </form>
+
+          <section class="conversation-results" id="conversation-results" aria-label="Conversation analysis results" aria-busy="false">
+            <div class="conversation-idle" id="conversation-idle">
+              <span class="conversation-idle-mark" aria-hidden="true">T1 → Tn</span>
+              <h3>Awaiting a trace</h3>
+              <p>Enter at least two turns to see independent scores and the conversation-level escalation check.</p>
+            </div>
+
+            <div class="conversation-result-content" id="conversation-result-content" hidden>
+              <div class="conversation-verdict">
+                <div>
+                  <span class="verdict-caption">Conversation classification</span>
+                  <strong id="conversation-verdict-label" aria-live="polite">Benign</strong>
+                </div>
+                <div class="conversation-score">
+                  <strong id="conversation-score-value">0.0%</strong>
+                  <span>maximum turn risk</span>
+                </div>
+              </div>
+
+              <div class="escalation-banner" id="conversation-escalation" data-state="clear" role="status" aria-live="polite">
+                <span class="escalation-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M5 12h4l2-7 3 14 2-7h3"></path></svg>
+                </span>
+                <div>
+                  <span>Cross-turn signal</span>
+                  <strong id="conversation-escalation-title">No codeword-smuggling escalation detected</strong>
+                  <p id="conversation-escalation-detail"></p>
+                </div>
+              </div>
+
+              <div class="conversation-turn-result-heading">
+                <span>Per-turn results</span>
+                <small>Default threshold · 0.50</small>
+              </div>
+              <ol class="conversation-turn-results" id="conversation-turn-results"></ol>
+            </div>
+          </section>
+        </div>
+      </section>
+
       <section class="examples shell" aria-labelledby="examples-title">
         <div class="section-heading">
           <div>
-            <p class="section-index">04 / Explore</p>
+            <p class="section-index">05 / Explore</p>
             <h2 id="examples-title">Test specimens</h2>
           </div>
           <p>Choose a curated message to load it into the scanner and classify it immediately.</p>

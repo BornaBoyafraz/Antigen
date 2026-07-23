@@ -59,3 +59,53 @@ def test_threshold_control_is_accessible_and_self_contained() -> None:
     assert "renderDecision();" in script
     assert "http://" not in html
     assert "https://" not in html
+
+
+@pytest.mark.skipif(NODE is None, reason="Node.js is required for browser-logic tests")
+def test_conversation_logic_preserves_per_turn_escalation_evidence() -> None:
+    assert NODE is not None
+    script = """
+const conversation = require("./webapp/conversation.js");
+const result = conversation.normalizeConversationPayload({
+  label: "injection",
+  score: 0.9,
+  escalation_detected: true,
+  turns: [
+    {text: "setup", label: "injection", score: 0.8, codeword_setups: ["pineapple"]},
+    {text: "pineapple", label: "injection", score: 0.9, codeword_invoked: "pineapple"}
+  ]
+});
+process.stdout.write(JSON.stringify({
+  escalationDetected: result.escalationDetected,
+  invoked: result.turns[1].codewordInvoked,
+  summary: conversation.escalationSummary(result)
+}));
+"""
+    completed = subprocess.run(
+        [NODE, "-e", script],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    output = json.loads(completed.stdout)
+    assert output["escalationDetected"] is True
+    assert output["invoked"] == "pineapple"
+    assert output["summary"]["title"] == "Codeword-smuggling escalation detected"
+    assert "pineapple" in output["summary"]["detail"]
+
+
+def test_conversation_mode_posts_to_existing_endpoint_and_renders_turns() -> None:
+    html = (ROOT / "webapp" / "index.html").read_text(encoding="utf-8")
+    script = (ROOT / "webapp" / "app.js").read_text(encoding="utf-8")
+
+    assert 'id="conversation-turn-inputs"' in html
+    assert 'id="conversation-turn-results"' in html
+    assert 'id="conversation-escalation"' in html
+    assert html.index('src="/conversation.js"') < html.index('src="/app.js"')
+    assert 'fetch("/api/classify_conversation"' in script
+    assert "JSON.stringify({ turns })" in script
+    assert "result.turns.map(renderConversationTurn)" in script
+    assert 'dataset.state =\n    result.escalationDetected ? "detected" : "clear"' in script

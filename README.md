@@ -52,7 +52,7 @@ demo and something a security team could actually work with.
 | [`conversation.py`](conversation.py) | Multi-turn scoring: runs the single-turn classifier on every turn independently, plus a narrow, high-precision detector for codeword smuggling — an earlier turn covertly defines a trigger word, a later short turn just invokes it — the one thing single-turn scoring structurally can't see. |
 | [`api/app.py`](api/app.py) | FastAPI service: `POST /api/classify` → `{label, score, explanation}`, `POST /api/classify_batch` → the same result for up to 100 texts, `POST /api/classify_conversation` → per-turn results plus conversation-level label/score, `GET /api/examples` for the demo gallery, `GET /api/health`. |
 | [`cli.py`](cli.py) | `antigen` console script: classifies positional text or piped stdin, printing the label, score, and which signals fired; `--json` emits the full explanation for piping into other tools. |
-| [`webapp/`](webapp/) | Interactive browser demo — paste text, get a live score and a triggered-feature breakdown. |
+| [`webapp/`](webapp/) | Interactive browser demo — inspect a single message with a movable decision threshold, or submit ordered turns for per-turn scoring and codeword-smuggling escalation detection. |
 
 Full design write-up — threat model, pipeline diagram, dataset
 methodology, and an explicit line between what's real and what's a known
@@ -288,10 +288,9 @@ manual, not an AI) still correctly doesn't match
       — behind a new `POST /api/classify_conversation` endpoint. This is
       the one specific multi-turn attack shape that's tractable without a
       labeled multi-turn dataset; general, no-codeword statistical
-      escalation across turns is still open (below). The webapp demo
-      doesn't expose this endpoint yet — still single-turn only.
-- [ ] Wire `classify_conversation` into the webapp as a second, turn-by-
-      turn demo panel
+      escalation across turns is still open (below). The webapp exposes
+      this endpoint as an ordered-turn trace with per-turn results and an
+      explicit escalation indicator.
 - [ ] General slow-escalation detection across turns with no explicit
       codeword (e.g. context gradually shifting a persona rather than a
       single trigger word) — a genuinely harder problem than codeword
