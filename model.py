@@ -93,7 +93,7 @@ def train(examples: list[Example]) -> Pipeline:
 # bare matches) and the text carries no indirect-content framing marker
 # (so it doesn't look like it arrived embedded in fetched content), cap the
 # score instead of trusting the model to have learned that tradeoff well
-# from 247 rows. It's a cap, not a hard override to "benign" — text that's
+# from a small synthetic corpus. It's a cap, not a hard override to "benign" — text that's
 # independently suspicious for other reasons can still score above the cap.
 DISCUSSION_OVERRIDE_CAP = 0.35
 
