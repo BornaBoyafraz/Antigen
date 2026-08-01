@@ -45,7 +45,7 @@ process.stdout.write(JSON.stringify({
     }
 
 
-def test_threshold_control_is_accessible_and_self_contained() -> None:
+def test_threshold_control_is_accessible_and_remote_code_free() -> None:
     html = (ROOT / "webapp" / "index.html").read_text(encoding="utf-8")
     script = (ROOT / "webapp" / "app.js").read_text(encoding="utf-8")
 
@@ -57,8 +57,9 @@ def test_threshold_control_is_accessible_and_self_contained() -> None:
     assert html.index('src="/decision.js"') < html.index('src="/app.js"')
     assert "decisionThreshold.addEventListener(\"input\", updateDecisionThreshold)" in script
     assert "renderDecision();" in script
-    assert "http://" not in html
-    assert "https://" not in html
+    assert '<script src="http' not in html
+    assert '<img src="http' not in html
+    assert 'href="https://github.com/BornaBoyafraz/Antigen"' in html
 
 
 @pytest.mark.skipif(NODE is None, reason="Node.js is required for browser-logic tests")
