@@ -71,13 +71,22 @@
 html {
   scroll-behavior: smooth;
   scroll-padding-top: 110px;
+  /* Paired with body's clip below: both the root and body must clip for the
+     document's scroll width to stay within the viewport, so decorative
+     glows and the visually-hidden a11y table can't cause horizontal scroll
+     on narrow screens. clip (not hidden) keeps the sticky header working. */
+  overflow-x: clip;
 }
 
 body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
-  overflow-x: hidden;
+  /* position:relative makes body the containing block for the decorative
+     absolute-positioned glows, and overflow-x:clip then contains them so
+     they can't widen the page on narrow viewports. */
+  position: relative;
+  overflow-x: clip;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-sans);
@@ -3006,6 +3015,7 @@ p {
 
 .comparison-table {
   position: absolute;
+  left: 0;
   width: 1px;
   height: 1px;
   margin: -1px;
