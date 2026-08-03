@@ -28,6 +28,21 @@ delivery route — inhaled, ingested, or injected. Same idea here, applied
 to text instead of pathogens: flag content that's foreign to the user's
 actual intent before it's treated as trusted instruction).
 
+## Table of contents
+
+- [Why this exists](#why-this-exists)
+- [What it actually does](#what-it-actually-does)
+- [Documentation](#documentation)
+- [See it run](#see-it-run)
+- [Quickstart](#quickstart)
+- [Make targets](#make-targets)
+- [Inspecting evaluation errors](#inspecting-evaluation-errors)
+- [Latency benchmark](#latency-benchmark)
+- [Honest scope](#honest-scope)
+- [Roadmap](#roadmap)
+- [Author](#author)
+- [License](#license)
+
 ## Why this exists
 
 Built as a demonstration of the specific skill intersection a role
@@ -48,6 +63,7 @@ demo and something a security team could actually work with.
 | [`explain.py`](explain.py) | Per-prediction rationale: which heuristic patterns matched verbatim, plus the top contributing TF-IDF character n-grams from a separately fitted linear explainer. Real model inputs and learned contributions, not a templated explanation. |
 | [`data/generate_dataset.py`](data/generate_dataset.py) | Generates the original, synthetic 322-row labeled dataset — hand-written seeds plus template combinatorics across benign / benign-but-tricky / direct injection / indirect injection / jailbreak / obfuscated categories. |
 | [`eval/harness.py`](eval/harness.py) | Stratified train/test split + a separately hand-written adversarial suite ([`eval/build_adversarial_suite.py`](eval/build_adversarial_suite.py)) that shares no generation templates with the training corpus, with per-category precision/recall/F1/ROC-AUC and a confusion matrix. |
+| [`eval/robustness.py`](eval/robustness.py) | Adversarial robustness evaluation: applies character-level evasion transforms to caught attacks and reports how much detection is retained. |
 | [`baselines.py`](baselines.py) | A transparent regex-only baseline scored side by side with the trained model, so "the ML earns its keep" is a measured claim, not an assertion — the model beats it by **+0.37** on held-out data and **+0.67** on unseen adversarial phrasing (where keyword matching can't generalize). |
 | [`conversation.py`](conversation.py) | Multi-turn scoring: runs the single-turn classifier on every turn independently, plus a narrow, high-precision detector for codeword smuggling — an earlier turn covertly defines a trigger word, a later short turn just invokes it — the one thing single-turn scoring structurally can't see. |
 | [`api/app.py`](api/app.py) | FastAPI service: `POST /api/classify` → `{label, score, explanation}`, `POST /api/classify_batch` → the same result for up to 100 texts, `POST /api/classify_conversation` → per-turn results plus conversation-level label/score, `GET /api/examples` for the demo gallery, `GET /api/health`. |
@@ -59,6 +75,18 @@ methodology, and an explicit line between what's real and what's a known
 limitation — is in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 Intended use, measured performance, failure modes, and deployment cautions
 are summarized in the [`MODEL_CARD.md`](MODEL_CARD.md).
+
+## Documentation
+
+- [`MODEL_CARD.md`](MODEL_CARD.md) — intended use, measured performance,
+  failure modes, and deployment cautions.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — model design, dataset
+  construction, pipeline choices, and honest scope.
+- [`docs/EVALUATION.md`](docs/EVALUATION.md) — reproducible methodology,
+  operating points, baseline comparison, and adversarial robustness results.
+- [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) — trust boundaries, attack
+  carriers, in-scope and out-of-scope behavior, and measured evasion gaps.
+- [`CHANGELOG.md`](CHANGELOG.md) — notable project changes grouped by release.
 
 ## See it run
 
