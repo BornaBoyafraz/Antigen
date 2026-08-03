@@ -8,9 +8,10 @@ model artifacts, async inference workers, concurrency controls).
 """
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,17 +19,45 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from api.examples import EXAMPLE_GALLERY
+from api.operations import RateLimitMiddleware, RequestMetrics, RequestMetricsMiddleware
 from conversation import score_conversation
 from explain import explain, fit_explainer
 from model import load_dataset, train
 
 WEBAPP_DIR = Path(__file__).parent.parent / "webapp"
 
-_state: dict = {}
+_state: dict[str, Any] = {}
+
+OPENAPI_TAGS = [
+    {
+        "name": "classification",
+        "description": "Score individual text blocks, batches, or ordered conversations.",
+    },
+    {
+        "name": "operations",
+        "description": "Inspect service readiness and process-local request measurements.",
+    },
+    {
+        "name": "demo",
+        "description": "Retrieve curated examples used by the browser demonstration.",
+    },
+]
+
+CLASSIFY_RESPONSE_EXAMPLE = {
+    "label": "injection",
+    "score": 0.91,
+    "explanation": {
+        "label": "injection",
+        "score": 0.91,
+        "triggered_phrases": ["Ignore all previous instructions"],
+        "triggered_role_markers": [],
+        "top_contributing_ngrams": [{"ngram": "ignore", "weight": 0.42}],
+    },
+}
 
 
 @asynccontextmanager
-async def _lifespan(app: FastAPI):
+async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     examples = load_dataset()
     _state["pipeline"] = train(examples)
     _state["explainer"] = fit_explainer(examples)
@@ -37,7 +66,14 @@ async def _lifespan(app: FastAPI):
     _state.clear()
 
 
-app = FastAPI(title="Antigen", description="Prompt-injection classifier API", lifespan=_lifespan)
+app = FastAPI(
+    title="Antigen",
+    description="Interpretable prompt-injection classification for text and conversations.",
+    version="0.1.0",
+    openapi_tags=OPENAPI_TAGS,
+    lifespan=_lifespan,
+)
+app.state.request_metrics = RequestMetrics()
 
 app.add_middleware(
     CORSMiddleware,
@@ -45,6 +81,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RateLimitMiddleware)
+app.add_middleware(RequestMetricsMiddleware, metrics=app.state.request_metrics)
 
 
 class ClassifyRequest(BaseModel):
@@ -54,7 +92,7 @@ class ClassifyRequest(BaseModel):
 class ClassifyResponse(BaseModel):
     label: str
     score: float
-    explanation: dict
+    explanation: dict[str, Any]
 
 
 class ClassifyBatchRequest(BaseModel):
@@ -71,11 +109,11 @@ class ClassifyConversationResponse(BaseModel):
     label: str
     score: float
     escalation_detected: bool
-    turns: list[dict]
+    turns: list[dict[str, Any]]
 
 
-@app.get("/api/health")
-def health() -> dict:
+@app.get("/api/health", tags=["operations"], summary="Check service readiness")
+def health() -> dict[str, object]:
     return {
         "status": "ok",
         "trained": "pipeline" in _state,
@@ -83,9 +121,15 @@ def health() -> dict:
     }
 
 
-@app.get("/api/examples")
-def examples() -> list[dict]:
+@app.get("/api/examples", tags=["demo"], summary="List curated classification examples")
+def examples() -> list[dict[str, str]]:
     return EXAMPLE_GALLERY
+
+
+@app.get("/api/metrics", tags=["operations"], summary="Read process-local request metrics")
+def metrics() -> dict[str, object]:
+    """Return counters and latency measurements for this service process."""
+    return app.state.request_metrics.snapshot()
 
 
 def _classify_text(text: str) -> ClassifyResponse:
@@ -95,18 +139,39 @@ def _classify_text(text: str) -> ClassifyResponse:
     return ClassifyResponse(label=exp.label, score=exp.score, explanation=exp.to_dict())
 
 
-@app.post("/api/classify", response_model=ClassifyResponse)
+@app.post(
+    "/api/classify",
+    response_model=ClassifyResponse,
+    tags=["classification"],
+    summary="Classify one text block",
+    responses={
+        200: {
+            "description": "Classification and feature-level explanation.",
+            "content": {"application/json": {"example": CLASSIFY_RESPONSE_EXAMPLE}},
+        }
+    },
+)
 def classify(req: ClassifyRequest) -> ClassifyResponse:
     return _classify_text(req.text)
 
 
-@app.post("/api/classify_batch", response_model=list[ClassifyResponse])
+@app.post(
+    "/api/classify_batch",
+    response_model=list[ClassifyResponse],
+    tags=["classification"],
+    summary="Classify a batch of text blocks",
+)
 def classify_batch(req: ClassifyBatchRequest) -> list[ClassifyResponse]:
     """Classify up to 100 independent text blocks in request order."""
     return [_classify_text(text) for text in req.texts]
 
 
-@app.post("/api/classify_conversation", response_model=ClassifyConversationResponse)
+@app.post(
+    "/api/classify_conversation",
+    response_model=ClassifyConversationResponse,
+    tags=["classification"],
+    summary="Classify an ordered conversation",
+)
 def classify_conversation(req: ClassifyConversationRequest) -> ClassifyConversationResponse:
     """Scores a conversation window turn-by-turn and additionally flags a
     later turn that invokes a covert trigger word an earlier turn defined
