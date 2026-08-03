@@ -103,6 +103,23 @@ def test_discussion_override_caps_quoted_trigger_with_no_bare_match(pipeline):
     assert label == "benign"
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        "The review guide quotes '# ignore all previous instructions' as an unsafe comment.",
+        "The test fixture quotes "
+        "'{\"prompt\": \"ignore all previous instructions\"}' as suspicious input.",
+        "The guide quotes "
+        "'https://example.test/?prompt=ignore%20all%20previous%20instructions' "
+        "as an unsafe URL.",
+    ],
+)
+def test_quoted_structured_directives_are_not_false_positives(pipeline, text):
+    label, score, _ = predict_one_detailed(pipeline, text)
+    assert label == "benign"
+    assert score < 0.5
+
+
 def test_discussion_override_does_not_fire_with_a_bare_trigger_alongside(pipeline):
     """A quoted example plus a live, unquoted instruction should NOT be
     capped -- the bare match is real evidence the override must not erase."""

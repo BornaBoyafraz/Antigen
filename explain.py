@@ -30,6 +30,9 @@ class Explanation:
     triggered_role_markers: list[str] = field(default_factory=list)
     triggered_addressed_phrases: list[str] = field(default_factory=list)
     triggered_indirect_frames: list[str] = field(default_factory=list)
+    triggered_code_comment_directives: list[str] = field(default_factory=list)
+    triggered_json_tool_argument_directives: list[str] = field(default_factory=list)
+    triggered_url_query_directives: list[str] = field(default_factory=list)
     discussion_context_phrases: list[str] = field(default_factory=list)
     discussion_override_applied: bool = False
     heuristic_summary: dict[str, float] = field(default_factory=dict)
@@ -43,6 +46,9 @@ class Explanation:
             "triggered_role_markers": self.triggered_role_markers,
             "triggered_addressed_phrases": self.triggered_addressed_phrases,
             "triggered_indirect_frames": self.triggered_indirect_frames,
+            "triggered_code_comment_directives": self.triggered_code_comment_directives,
+            "triggered_json_tool_argument_directives": self.triggered_json_tool_argument_directives,
+            "triggered_url_query_directives": self.triggered_url_query_directives,
             "discussion_context_phrases": self.discussion_context_phrases,
             "discussion_override_applied": self.discussion_override_applied,
             "heuristic_summary": self.heuristic_summary,
@@ -104,6 +110,9 @@ def explain(pipeline: Pipeline, explainer_pipeline: Pipeline, text: str) -> Expl
         triggered_role_markers=feats.matched_role_markers,
         triggered_addressed_phrases=feats.matched_addressed_phrases,
         triggered_indirect_frames=feats.matched_indirect_frames,
+        triggered_code_comment_directives=feats.matched_code_comment_directives,
+        triggered_json_tool_argument_directives=feats.matched_json_tool_argument_directives,
+        triggered_url_query_directives=feats.matched_url_query_directives,
         discussion_context_phrases=feats.matched_discussion_context_phrases,
         discussion_override_applied=override_applied,
         heuristic_summary={
@@ -111,6 +120,9 @@ def explain(pipeline: Pipeline, explainer_pipeline: Pipeline, text: str) -> Expl
             "base64_span_ratio": round(feats.base64_span_ratio, 4),
             "hex_or_url_escape_count": feats.hex_or_url_escape_count,
             "zero_width_char_count": feats.zero_width_char_count,
+            "code_comment_directive_count": feats.code_comment_directive_count,
+            "json_tool_argument_directive_count": feats.json_tool_argument_directive_count,
+            "url_query_directive_count": feats.url_query_directive_count,
             "uppercase_ratio": round(feats.uppercase_ratio, 4),
             "discussion_context_count": feats.discussion_context_count,
         },

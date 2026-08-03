@@ -11,6 +11,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from dataclasses import dataclass
+from urllib.parse import parse_qsl, urlsplit
 
 # --- Pattern banks -----------------------------------------------------
 
@@ -116,11 +117,10 @@ _QUOTE_PAIR_RES = [
 # matter of syntax, not because anyone is quoting anything. Treating those as
 # quotation marks is how an injection embedded in a tool result — the single
 # most important indirect case — got read as "merely being discussed" and had
-# its score capped. A double-quoted span that is a JSON value (the previous
-# non-space character is a `:` or `,`, or it opens an object/array) is data, so
-# it is excluded from quotation spans. Prose quotation, which is what the
-# discussion signal is actually for, is unaffected.
-_JSON_VALUE_CONTEXT_RE = re.compile(r"[:,\[{]\s*$")
+# its score capped. A double-quoted span that follows a JSON separator or an
+# assignment operator is data, so it is excluded from quotation spans. Prose
+# quotation, which is what the discussion signal is actually for, is unaffected.
+_STRUCTURED_VALUE_CONTEXT_RE = re.compile(r"[:,\[{=]\s*$")
 
 
 def _quoted_spans(text: str) -> list[tuple[int, int]]:
@@ -129,7 +129,9 @@ def _quoted_spans(text: str) -> list[tuple[int, int]]:
     for pattern in _QUOTE_PAIR_RES:
         is_double_quote = pattern.pattern.startswith('"')
         for m in pattern.finditer(neutralized):
-            if is_double_quote and _JSON_VALUE_CONTEXT_RE.search(neutralized[: m.start()]):
+            if is_double_quote and _STRUCTURED_VALUE_CONTEXT_RE.search(
+                neutralized[: m.start()]
+            ):
                 continue
             spans.append((m.start(1), m.end(1)))
     return spans
@@ -163,11 +165,116 @@ _discussion_cue_re = [re.compile(p, re.IGNORECASE) for p in DISCUSSION_CUES]
 _DISCUSSION_CUE_WINDOW = 80
 
 
-def _in_discussion_context(text: str, match: re.Match, quoted_spans: list[tuple[int, int]]) -> bool:
-    if _is_within_any_span(quoted_spans, match.start(), match.end()):
+def _in_discussion_context(
+    text: str,
+    start: int,
+    end: int,
+    quoted_spans: list[tuple[int, int]],
+) -> bool:
+    if _is_within_any_span(quoted_spans, start, end):
         return True
-    context = text[max(0, match.start() - _DISCUSSION_CUE_WINDOW):match.start()]
+    context = text[max(0, start - _DISCUSSION_CUE_WINDOW):start]
     return any(p.search(context) for p in _discussion_cue_re)
+
+
+# Structured carriers need their own signals because their syntax can obscure
+# the directive from ordinary text features. The carrier patterns locate
+# comments and serialized string values; the directive bank then checks that
+# the carrier contains behavior-steering language rather than counting every
+# comment, string, or query parameter as suspicious.
+STRUCTURED_DIRECTIVE_PHRASES = [
+    *OVERRIDE_PHRASES,
+    r"\b(?:follow|obey|execute)\s+(?:all\s+)?(?:these|the|my|new|following)\s+instructions?\b",
+    r"\b(?:[\w-]+\s+)?(?:system|assistant|developer|agent)\s*:\s*"
+    r"(?:(?:also|instead|now|please|quietly|secretly|immediately)\s+)*"
+    r"(?:ignore|disregard|forget|override|reveal|repeat|output|print|send|email|post|delete|"
+    r"execute|run|download|visit|navigate|click|submit|bypass|disable|act|pretend|respond|"
+    r"reply|translate|decode|leak|add|close|write|return|follow|obey|you)\b",
+]
+
+CODE_COMMENT_PATTERNS = [
+    r"(?m)(?<!\w)\#(?!\#)[^\r\n]*",
+    r"(?m)(?<!:)//[^\r\n]*",
+    r"(?s)<!--.*?-->",
+]
+
+JSON_STRING_VALUE_PATTERNS = [
+    r'"(?:\\.|[^"\\])*"\s*:\s*"(?:\\.|[^"\\])*"',
+]
+
+TOOL_ARGUMENT_STRING_VALUE_PATTERNS = [
+    r"(?<![\"'\w])(?:arguments?|args?|input|prompt|query|content|message|instructions?)\s*"
+    r"[:=]\s*(?:\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*')",
+]
+
+_structured_directive_re = [
+    re.compile(p, re.IGNORECASE | re.MULTILINE) for p in STRUCTURED_DIRECTIVE_PHRASES
+]
+_code_comment_re = [re.compile(p) for p in CODE_COMMENT_PATTERNS]
+_json_string_value_re = [re.compile(p) for p in JSON_STRING_VALUE_PATTERNS]
+_tool_argument_string_value_re = [
+    re.compile(p, re.IGNORECASE) for p in TOOL_ARGUMENT_STRING_VALUE_PATTERNS
+]
+_URL_QUERY_RE = re.compile(r"https?://[^\s<>\"']+", re.IGNORECASE)
+
+
+@dataclass(frozen=True)
+class _ContextualDirective:
+    """A suspicious carrier plus its location in the original text."""
+
+    text: str
+    start: int
+    end: int
+
+
+def _contains_structured_directive(text: str) -> bool:
+    return any(pattern.search(text) for pattern in _structured_directive_re)
+
+
+def _find_directives_in_pattern_contexts(
+    patterns: list[re.Pattern[str]],
+    text: str,
+) -> list[_ContextualDirective]:
+    hits: list[_ContextualDirective] = []
+    for pattern in patterns:
+        for match in pattern.finditer(text):
+            directive_match = next(
+                (
+                    directive
+                    for directive_pattern in _structured_directive_re
+                    if (directive := directive_pattern.search(match.group(0)))
+                ),
+                None,
+            )
+            if directive_match is not None:
+                hits.append(
+                    _ContextualDirective(
+                        text=match.group(0),
+                        start=match.start() + directive_match.start(),
+                        end=match.start() + directive_match.end(),
+                    )
+                )
+    return hits
+
+
+def _find_url_query_directives(text: str) -> list[_ContextualDirective]:
+    hits: list[_ContextualDirective] = []
+    for match in _URL_QUERY_RE.finditer(text):
+        raw_url = match.group(0).rstrip(".,;:!?)]}")
+        try:
+            query_pairs = parse_qsl(urlsplit(raw_url).query, keep_blank_values=True)
+        except ValueError:
+            continue
+        for key, value in query_pairs:
+            if _contains_structured_directive(value):
+                hits.append(
+                    _ContextualDirective(
+                        text=f"{key}={value}",
+                        start=match.start(),
+                        end=match.start() + len(raw_url),
+                    )
+                )
+    return hits
 
 
 @dataclass
@@ -184,6 +291,9 @@ class FeatureResult:
     zero_width_char_count: int
     url_count: int
     indirect_frame_marker_count: int
+    code_comment_directive_count: int
+    json_tool_argument_directive_count: int
+    url_query_directive_count: int
     length_chars: int
     uppercase_ratio: float
     discussion_context_count: int
@@ -192,6 +302,9 @@ class FeatureResult:
     matched_role_markers: list[str]
     matched_addressed_phrases: list[str]
     matched_indirect_frames: list[str]
+    matched_code_comment_directives: list[str]
+    matched_json_tool_argument_directives: list[str]
+    matched_url_query_directives: list[str]
     matched_discussion_context_phrases: list[str]
 
     def to_vector(self) -> list[float]:
@@ -205,6 +318,9 @@ class FeatureResult:
             self.zero_width_char_count,
             self.url_count,
             self.indirect_frame_marker_count,
+            self.code_comment_directive_count,
+            self.json_tool_argument_directive_count,
+            self.url_query_directive_count,
             self.length_chars,
             self.uppercase_ratio,
             self.discussion_context_count,
@@ -222,6 +338,9 @@ class FeatureResult:
             "zero_width_char_count",
             "url_count",
             "indirect_frame_marker_count",
+            "code_comment_directive_count",
+            "json_tool_argument_directive_count",
+            "url_query_directive_count",
             "length_chars",
             "uppercase_ratio",
             "discussion_context_count",
@@ -282,17 +401,56 @@ def extract_features(text: str) -> FeatureResult:
     role_matches = _find_all_matches(_role_re, normalized)
     addressed_matches = _find_all_matches(_addressed_re, normalized)
     indirect_hits = _find_all(_indirect_frame_re, normalized)
+    code_comment_candidates = _find_directives_in_pattern_contexts(
+        _code_comment_re,
+        normalized,
+    )
+    json_tool_argument_candidates = _find_directives_in_pattern_contexts(
+        _json_string_value_re + _tool_argument_string_value_re,
+        normalized,
+    )
+    url_query_candidates = _find_url_query_directives(normalized)
 
     override_hits = [m.group(0) for m in override_matches]
     role_hits = [m.group(0) for m in role_matches]
     addressed_hits = [m.group(0) for m in addressed_matches]
 
     quoted_spans = _quoted_spans(normalized)
-    discussion_matches = [
-        m for m in override_matches + role_matches + addressed_matches
-        if _in_discussion_context(normalized, m, quoted_spans)
+    code_comment_matches = [
+        match
+        for match in code_comment_candidates
+        if not _in_discussion_context(
+            normalized,
+            match.start,
+            match.end,
+            quoted_spans,
+        )
     ]
-    discussion_hits = [m.group(0) for m in discussion_matches]
+    json_tool_argument_matches = [
+        match
+        for match in json_tool_argument_candidates
+        if not _in_discussion_context(
+            normalized,
+            match.start,
+            match.end,
+            quoted_spans,
+        )
+    ]
+    url_query_matches = [
+        match
+        for match in url_query_candidates
+        if not _in_discussion_context(
+            normalized,
+            match.start,
+            match.end,
+            quoted_spans,
+        )
+    ]
+    discussion_hits = [
+        match.group(0)
+        for match in override_matches + role_matches + addressed_matches
+        if _in_discussion_context(normalized, match.start(), match.end(), quoted_spans)
+    ]
 
     hex_or_url_escapes = len(_HEX_ESCAPE_RE.findall(normalized))
     zero_width = len(_ZERO_WIDTH_RE.findall(text))
@@ -308,6 +466,9 @@ def extract_features(text: str) -> FeatureResult:
         zero_width_char_count=zero_width,
         url_count=urls,
         indirect_frame_marker_count=len(indirect_hits),
+        code_comment_directive_count=len(code_comment_matches),
+        json_tool_argument_directive_count=len(json_tool_argument_matches),
+        url_query_directive_count=len(url_query_matches),
         length_chars=len(text),
         uppercase_ratio=_uppercase_ratio(normalized),
         discussion_context_count=len(discussion_hits),
@@ -315,5 +476,10 @@ def extract_features(text: str) -> FeatureResult:
         matched_role_markers=role_hits,
         matched_addressed_phrases=addressed_hits,
         matched_indirect_frames=indirect_hits,
+        matched_code_comment_directives=[match.text for match in code_comment_matches],
+        matched_json_tool_argument_directives=[
+            match.text for match in json_tool_argument_matches
+        ],
+        matched_url_query_directives=[match.text for match in url_query_matches],
         matched_discussion_context_phrases=discussion_hits,
     )
