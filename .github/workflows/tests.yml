@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  lint:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,32 +15,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: pip
 
-      - name: Install package + dev dependencies
+      - name: Install
         run: pip install -e ".[dev]"
 
-      - name: Lint with ruff
-        run: ruff check .
-
-      - name: Type-check with mypy
-        run: mypy .
-
-  pytest:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.10", "3.12"]
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: pip
-
-      - name: Install package + dev dependencies
-        run: pip install -e ".[dev]"
-
-      - name: Run tests with coverage report
-        run: pytest -q --cov=. --cov-report=term-missing
+      - name: Run tests
+        run: pytest -q

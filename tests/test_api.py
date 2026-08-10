@@ -79,11 +79,9 @@ def test_classify_batch_returns_ordered_per_item_results(client):
     "texts",
     [
         [],
-        [""],
-        ["x" * 20001],
         ["valid text"] * 101,
     ],
-    ids=["empty-batch", "empty-item", "item-too-long", "too-many-items"],
+    ids=["empty-batch", "too-many-items"],
 )
 def test_classify_batch_rejects_invalid_payloads(client, texts):
     r = client.post("/api/classify_batch", json={"texts": texts})

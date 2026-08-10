@@ -1,13 +1,12 @@
-"""The classifier: char-n-gram TF-IDF unioned with engineered heuristic
-features (features.py), feeding a calibrated logistic regression.
+"""The classifier: char-n-gram TF-IDF plus the hand-written features from
+features.py, fed into a logistic regression.
 
-Logistic regression over an interpretable feature union is the deliberate
-choice here, not gradient boosting or a fine-tuned transformer: every
-prediction can be attributed to specific, human-readable signals (see
-explain.py), which matters more for a security classifier than a couple
-points of accuracy from a black-box model. See docs/ARCHITECTURE.md for
-the full rationale and the documented path to swapping in a heavier model
-behind the same interface.
+I went with logistic regression instead of something fancier like a
+gradient boosting model or a fine-tuned transformer because it's easy to
+see why it made a decision -- you can trace the prediction back to specific
+features (see explain.py). For a project about *explaining* why something
+looks like an injection, that mattered more to me than squeezing out a
+little extra accuracy.
 """
 from __future__ import annotations
 
